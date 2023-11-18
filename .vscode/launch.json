@@ -8,7 +8,8 @@
             "name": "launch.py",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/src/launch.py",
+            "program": "${workspaceFolder}/editor/editor.py",
+            // "program": "${workspaceFolder}/src/launch.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": []
