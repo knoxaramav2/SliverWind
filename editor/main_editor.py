@@ -23,6 +23,8 @@ class Window:
 
     __asset_nb  : Notebook = None
     __asset_btns: Frame = None
+    __asset_slct: dict
+    __asset_pane: Frame = None
 
     __colls     : dict = {}
 
@@ -53,7 +55,7 @@ class Window:
                 #    self.__assetlib.winfo_height()
                    )
         self.__root.geometry(f'{total_w}x{total_h}')
-        
+    
 
     def __spacer(self, cvc, col, row):
         sp = Label(cvc, bd=1, borderwidth=1,
@@ -189,16 +191,41 @@ class Window:
     def __init_atlas(self, cvc):
         pass
 
+    def __make_select_frame(self, cvc, group:str, type:str):
+
+        frame = Frame(cvc, background='green')
+
+        if type == 'list':
+            pass
+            # for i in range (0, 10):
+            #     b = Button(frame, text='Test')
+            #     b.pack(anchor='w', expand=1, fill='x') 
+        elif type == 'grid':
+            pass
+            # for i in range (0, 20):
+            #     b = Button(frame, width=2, height=1)    
+            #     x = int(i/5)
+            #     y = i%5
+            #     b.grid(column=x, row=y, padx=1, pady=1)
+
+        return frame
+
     def __init_tab(self, cvc, group):
-        frame = Frame(cvc)
+        frame = Frame(cvc, background='yellow')
+        dropframe = Frame(frame, background='blue')
 
         var = self.__rsc_man.get_coll_var(group)
         options = self.__rsc_man.list_collections(group)
         var.set(options[0])
+        dropdown = OptionMenu(dropframe, var, *options)
 
-        dropdown = OptionMenu(frame, var, *options)
-        frame.pack(expand=True, fill='both', side='top')
-        dropdown.pack(anchor='nw', side='top', fill='both', expand=1)
+        atype = 'list' if group == 'script' or group == 'audio' else 'grid'
+        sel_frame = self.__make_select_frame(frame, group, atype)
+
+        dropdown.pack(fill='x')
+        dropframe.pack(anchor='nw', side='top', fill='x')
+        sel_frame.pack(anchor='n', side='top', fill='both', expand=1)
+        frame.pack()
 
         #Todo consolidate
         self.__colls[group] = dropdown
