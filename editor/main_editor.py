@@ -189,52 +189,6 @@ class Window:
     def __init_atlas(self, cvc):
         pass
 
-    def __init_scripts(self, cvc):
-        pass
-
-    def __init_actors(self, cvc):
-        pass
-
-    def __create_scrollgrid(self, cvc):
-        sframe = Frame(cvc)
-        cvc.configure(scrollregion=cvc.bbox('all'))
-        scroll = Scrollbar(cvc, orient='vertical', command=cvc.yview)
-        cvc.configure(yscrollcommand=scroll.set)
-
-        
-        scroll.pack(side='right', fill='y')
-        
-        cvc.pack(side='bottom', anchor='nw', fill='x')
-        sframe.pack(anchor='w', fill='x')
-
-        cvc.create_line(0, 0, self.__assets_w, self.__grid_h)
-        cvc.configure(scrollregion=cvc.bbox('all'))
-
-        for x in range(0, 7):
-            for y in range(0, 10):
-                self.__spacer(sframe, x, y)
-
-        return sframe, scroll
-
-    def __init_fg(self, cvc):
-        pass
-
-    def __init_bg(self, cvc:Canvas):
-
-        ftop = Frame(cvc)
-        
-        options = self.__rsc_man.list_collections('bg')
-        value = StringVar(self.__root)
-        value.set(options[0])
-        self.__rsc_man.add_coll_var('bg', value)
-        
-        dropdown = OptionMenu(ftop, value, *options)
-        ftop.pack(expand=True, fill='both', side='top')
-        dropdown.pack(anchor='nw', side='top', fill='both', expand=1)
-
-        self.__colls['bg'] = dropdown
-        self.__wrld_dep.append(dropdown)
-
     def __init_tab(self, cvc, group):
         frame = Frame(cvc)
 
