@@ -18,14 +18,16 @@ class Block(ISerializeable):
     overimage   : PhotoImage
     pos         : tuple[int, int]
     block       : bool
-    script      : str
+    overdraw    : bool
+    event       : str
 
     def __init__(self) -> None:
         self.image = None
         self.overimage = None
         self.pos = (0, 0)
         self.block = False
-        self.script = None
+        self.overdraw = False
+        self.event = None
 
     def serialize(self):
         return ''
@@ -98,11 +100,16 @@ class GridManager(ISerializeable):
         self.__maps = []
         self.__current = None
 
+    def curr_map(self):
+        return self.__current
+
     def add_map(self, name:str, w:int, h:int):
         map = GridMap(w, h)
         map.name = name
         map.id = randint(100000, 999999)
-    
+        self.__current = map
+        return map
+
     def serialize(self):
         return ''
 

@@ -2,11 +2,11 @@
 
 from functools import partial
 import os
-from tkinter import BooleanVar, Button, Canvas, Checkbutton, Frame, Label, Listbox, Menu, OptionMenu, Scrollbar, StringVar, Tk, messagebox, simpledialog, filedialog as fd
+from tkinter import BooleanVar, Button, Canvas, Checkbutton, Entry, Frame, IntVar, Label, Listbox, Menu, OptionMenu, Scrollbar, StringVar, Text, Tk, messagebox, simpledialog, filedialog as fd
 import tkinter
 from tkinter.ttk import Notebook
 from os.path import dirname, join
-from gridmap import GridManager
+from gridmap import GridManager, GridMap
 from icon import Icons, GetIcons
 from world_config import WorldConfig
 from editor_settings import EditorSettings
@@ -15,6 +15,47 @@ from rsc_manager import AType, Asset, RSCManager
 from file_manager import FileManager
 from ed_util import Util, GetUtil
 from PIL import ImageTk
+
+class DynamicDiolog(tkinter.Toplevel):
+
+    def __init__(self, parent, title:str, prompts:[tuple[str,StringVar|BooleanVar|IntVar]]):
+        
+        tkinter.Toplevel.__init__(self, parent)
+        self.resizable(False, False)
+
+        i = 0
+        for p in prompts:
+
+            lbl = Label(self, text=p[0])
+            input = None
+
+            if isinstance(p[1], StringVar):
+                input = Entry(self, textvariable=p[1])
+            elif isinstance(p[1], BooleanVar):
+                input = Checkbutton(self, variable=p[1])
+            elif isinstance(p[1], IntVar):
+                input = Entry(self, textvariable=p[1], validate='all', validatecommand=(self.register(self.__validate_entry), '%P'))
+
+            lbl.grid(column=0, row=i)
+            input.grid(column=1, row=i)
+
+            i += 1
+
+        self.accept_btn = Button(self, text='OK', command=self.__accept)
+        self.accept_btn.grid(column=2)
+
+    def __validate_entry(self, p):
+        return str.isdigit(p)
+
+    def __accept(self, event=None):
+        self.destroy()
+
+    def show(self):
+        self.wm_deiconify()
+        self.focus_force()
+        self.wait_window()
+        return
+
 
 class Window:
 
@@ -47,6 +88,13 @@ class Window:
     __map_man   : GridManager = None
     __settings  : EditorSettings = None
     __world     : WorldConfig = None
+
+    __md_above  : BooleanVar = None
+    __md_block  : BooleanVar = None
+    __md_event  : BooleanVar = None
+
+    __curr_block: Button     = None
+    __toolbox_txt: dict = None
 
     #Controls disabled when world not loaded
     __wrld_dep  : list = []
@@ -187,8 +235,27 @@ class Window:
     def __click_map_grid(self, abtn:Button):
         if self.__curr_asset == None or self.__curr_asset.rsc == None: return
         
+        overdraw = self.__md_above.get()
+        block = self.__md_block.get()
+        event = self.__md_event.get()
+
+        bg = 'white'
+
+        if overdraw and not block: bg = 'RoyalBlue1'
+        elif not overdraw and block: bg = 'firebrick1'
+        elif overdraw and block: bg = 'DarkOrchid1'
+
+        bc = 'dodger blue' if event else 'white'
+        bc = 'red'
         if self.__curr_asset.atype == AType.sprite:
-            abtn.configure(image=self.__curr_asset.rsc)
+            abtn.configure(image=self.__curr_asset.rsc, background=bg, fg=bc,
+                           highlightcolor=bc, relief='ridge')
+        
+        abtn.block = block
+        abtn.overdraw = overdraw
+        abtn.event = event
+        self.__curr_block = abtn
+        self.update_toolbox()
 
 
     def __click_asset_grid(self, abtn:Button):
@@ -307,7 +374,32 @@ class Window:
         tabf.pack(fill='both', expand=1)
 
     def __new_map(self, cvc):
-        pass
+        
+        w:int
+        h:int
+        name:str
+
+        w_var = IntVar(cvc, value=10)
+        h_var = IntVar(cvc, value=10)
+        name_var = StringVar(cvc, value='')
+
+        prompt = DynamicDiolog(cvc, 'New Map', 
+                               [('Map Name:', name_var),
+                                ('Width: ', w_var),
+                                ('Height: ', h_var)]
+                               )
+        prompt.show()
+
+        w = w_var.get()
+        h = h_var.get()
+        name = name_var.get()
+
+        if (name == '' or w < 0 or h < 0):
+            messagebox.showerror('Invalid Input', 'Map cannot be created')
+            return
+
+        self.__map_man.add_map(name ,w, h)
+        self.__init_map(self.__map)
 
     def __remove_map(self, cvc):
         pass
@@ -318,27 +410,44 @@ class Window:
 
         new_img = self.__get_ico('newmap')
         rem_img = self.__get_ico('remmap')
+        evt_img = self.__get_ico('event')
+        ovd_img = self.__get_ico('overdraw')
+        blk_img = self.__get_ico('block')
+
+        self.__md_above = BooleanVar(cvc, False)
+        self.__md_block = BooleanVar(cvc, False)
+        self.__md_event = BooleanVar(cvc, False)
 
         new_map = Button(frame, image=new_img)
         new_map.img = new_img
         rem_map = Button(frame, image=rem_img)
         rem_map.img = rem_img
+        overdraw = Checkbutton(frame, image=ovd_img, variable=self.__md_above)
+        overdraw.img = ovd_img
+        event = Checkbutton(frame, image=evt_img, variable=self.__md_event)
+        event.img = evt_img
+        block = Checkbutton(frame, image=blk_img, variable=self.__md_block)
+        block.img = blk_img
 
         new_map.configure(command=lambda:self.__new_map(cvc))
         rem_map.configure(command=lambda:self.__remove_map(cvc))
 
         rem_map.pack(anchor='e', side='right', padx=5)
         new_map.pack(anchor='e', side='right', padx=5)
-
-        self.__wrld_dep.extend([new_map, rem_map])
+        event.pack(anchor='center', side='right', padx=5)
+        overdraw.pack(anchor='center', side='right', padx=5)
+        block.pack(anchor='center', side='right', padx=5)
+        self.__wrld_dep.extend([new_map, rem_map, overdraw, block, event])
 
         return frame
     
-    def __init_map_grid(self, cvc, w:int, h:int):
+    def __init_map_grid(self, cvc, map:GridMap):
         frame = Frame(cvc, name='map_grid')
 
-        if self.__world == None:
+        if map == None:
             return frame
+
+        w, h = map.size()
 
         frame.blank = self.__get_ico('blank')
         for y in range(0, h):
@@ -346,36 +455,70 @@ class Window:
                 
                 cell = Button(
                     frame, image=frame.blank,
-                    highlightthickness=0, relief='flat', border=1, bd=1
+                    background='gray',
+                    highlightthickness=1, relief='flat', border=1, bd=1
                     )
-
+                cell.pos = (x, y)
+                cell.block = False
+                cell.event = False
+                cell.overdraw = False
                 cell.configure(command=partial(self.__click_map_grid, cell))
                 cell.grid(row=y, column=x, padx=0, pady=0)
 
         return frame
     
+    def update_toolbox(self):
+
+        curr = self.__curr_block
+        if curr == None:
+            return
+        
+        self.__toolbox_txt['POS'].configure(text=f'POS: {curr.pos[0]},{curr.pos[1]}')
+
+
     def __init_map_toolbox(self, cvc):
         frame = Frame(cvc)
+        
+        self.__toolbox_txt = {}
 
+        coord = Label(frame, text='POS:')
+        blocked = Label(frame, text='BLOCK:')
+        overdraw = Label(frame, text='OVERDRAW:')
+        event = Label(frame, text='EVENT:')
+
+        self.__toolbox_txt['POS'] = coord
+        self.__toolbox_txt['BLOCK'] = blocked
+        self.__toolbox_txt['OVERDRAW'] = overdraw
+        self.__toolbox_txt['EVENT'] = event
+
+        coord.grid(column=0, row=0)
+        blocked.grid(column=0, row=1)
+        overdraw.grid(column=1, row=1)
+        event.grid(column=2, row=1)
 
         return frame
 
 
     def __init_map(self, cvc):
 
+
+        if self.__map_man == None:
+            return
+        
         self.__clear_frame(cvc)
 
         frame = Frame(cvc, width=self.__grid_w, height=self.__grid_h, background='black', name='map_tools')
 
+        curr_map = self.__map_man.curr_map()
+
         toolbar = self.__init_map_toolbar(frame)
-        map = self.__init_map_grid(frame, self.__grid_w, self.__grid_h)
-        #toolbox = self.__init_map_toolbox(frame)
+        map = self.__init_map_grid(frame, curr_map)
+        toolbox = self.__init_map_toolbox(frame)
 
-        toolbar.pack(expand=True, fill='x')
+        toolbar.pack(expand=True, fill='x', side='top')
         map.pack(anchor='center', fill='both', expand=True)
-        #toolbox.grid(column=0, row=2)
+        toolbox.pack(anchor='s', fill='both', expand=True, side='bottom')
 
-        
         frame.pack(fill='both', expand=True)
         self.__adjust_win()
         
@@ -516,7 +659,7 @@ class Window:
         r.wm_iconphoto(True, ImageTk.PhotoImage(self.__icons.icons['main'][0]))
         r.geometry('%sx%s'%(w, h))
         r.resizable(False, False)
-        r.configure(background='grey')
+        r.configure(background='gray')
 
         self.__atlas = tkinter.Canvas(r, background='red',
                                         width=atlas_w, height=h,

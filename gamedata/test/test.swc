@@ -1,6 +1,6 @@
 created:2023-11-19 19:11:38.853977
-last_write:2023-11-20 09:23:02.426824
+last_write:2023-11-20 12:28:54.511581
 lsprite:C:/Users/Pat Scott/source/repos/SliverWind/editor/icons
 laud:C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\aud
 lscript:C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\scripts
-rsc:actor=sprite:default:main.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\actor\default\main.png;remfolder.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\actor\default\remfolder.png;cross.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\actor\default\cross.png;@|fg=sprite:default:@|bg=sprite:default:@|audio=audio:default:@|script=script:default:@
+rsc:actor=sprite:default:main.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\actor\default\main.png;remfolder.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\actor\default\remfolder.png;cross.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\actor\default\cross.png;blank.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\actor\default\blank.png;@|fg=sprite:default:@|bg=sprite:default:@|audio=audio:default:@|script=script:default:@
