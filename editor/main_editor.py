@@ -1,5 +1,6 @@
 
 
+from functools import partial
 import os
 from tkinter import BooleanVar, Button, Canvas, Checkbutton, Frame, Label, Listbox, Menu, OptionMenu, Scrollbar, StringVar, Tk, messagebox, simpledialog, filedialog as fd
 import tkinter
@@ -26,7 +27,7 @@ class Window:
     __asset_btns: Frame = None
     __asset_slct: dict = {}
     __asset_pane: Frame = None
-    __curr_asset: Asset
+    __curr_asset: Asset = None
 
     __colls     : dict = {}
 
@@ -34,8 +35,8 @@ class Window:
     __height    : int = 600
     __assets_w  : int = 250
     __atlas_w   : int = 250
-    __grid_w    : int = 40
-    __grid_h    : int = 25
+    __grid_w    : int = 30
+    __grid_h    : int = 20
     __asset_w   : int = 200
     __asset_h   : int = 200
 
@@ -82,6 +83,10 @@ class Window:
         
         for c in self.__wrld_dep:
             c.configure(state=state)
+
+    def __clear_frame(self, f:Frame|Canvas):
+        for c in f.winfo_children():
+            c.destroy()
 
     def __import_asset(self):
         
@@ -180,10 +185,11 @@ class Window:
         pass
 
     def __click_map_grid(self, abtn:Button):
-        if abtn.rsc == None or self.__curr_asset == None: return
+        if self.__curr_asset == None or self.__curr_asset.rsc == None: return
         
         if self.__curr_asset.atype == AType.sprite:
             abtn.configure(image=self.__curr_asset.rsc)
+
 
     def __click_asset_grid(self, abtn:Button):
         self.__curr_asset = abtn.asset
@@ -193,14 +199,13 @@ class Window:
         frame:Frame = self.__asset_slct[group]
         assets = self.__rsc_man.get_assets(group, col.get())
 
-        for child in frame.winfo_children():
-            child.destroy()
+        self.__clear_frame(frame)
 
         for i in range(0, len(assets)):
             a = assets[i]
             b = Button(frame, width=16, height=16, image=a.rsc)
             b.asset = a
-            b.configure(command=lambda:self.__click_asset_grid(b))
+            b.configure(command=partial(self.__click_asset_grid, b))
 
             x = i %5
             y = int(i/5)
@@ -285,7 +290,7 @@ class Window:
         imp_btn.configure(command=lambda :self.__import_asset())
         rem_btn.configure(command=lambda :self.__remove_asset())
         ncol_btn.configure(command=lambda:self.__add_collection())
-        rem_col.configure(command=lambda:self.__remove_collection())
+        rem_col.configure(command=lambda :self.__remove_collection())
 
         return btnf
 
@@ -308,7 +313,8 @@ class Window:
         pass
 
     def __init_map_toolbar(self, cvc):
-        frame = Frame(cvc, width=self.__width/2, height=25, background='purple')
+
+        frame = Frame(cvc, width=500, height=25, background='purple', name='map_toolbar')
 
         new_img = self.__get_ico('newmap')
         rem_img = self.__get_ico('remmap')
@@ -321,20 +327,29 @@ class Window:
         new_map.configure(command=lambda:self.__new_map(cvc))
         rem_map.configure(command=lambda:self.__remove_map(cvc))
 
-        rem_map.pack(anchor='e', padx=5)
-        new_map.pack(anchor='e', padx=5)
+        rem_map.pack(anchor='e', side='right', padx=5)
+        new_map.pack(anchor='e', side='right', padx=5)
+
+        self.__wrld_dep.extend([new_map, rem_map])
 
         return frame
     
     def __init_map_grid(self, cvc, w:int, h:int):
-        frame = Frame(cvc)
+        frame = Frame(cvc, name='map_grid')
 
+        if self.__world == None:
+            return frame
+
+        frame.blank = self.__get_ico('blank')
         for y in range(0, h):
             for x in range(0, w):
-                cell = Label(cvc, bd=1, borderwidth=1,
-                        fg='white', background='grey',
-                        width=2, height=1,
-                        highlightthickness=1, bg='black')
+                
+                cell = Button(
+                    frame, image=frame.blank,
+                    highlightthickness=0, relief='flat', border=1, bd=1
+                    )
+
+                cell.configure(command=partial(self.__click_map_grid, cell))
                 cell.grid(row=y, column=x, padx=0, pady=0)
 
         return frame
@@ -347,17 +362,22 @@ class Window:
 
 
     def __init_map(self, cvc):
-        frame = Frame(cvc, width=self.__width, height=self.__height, background='black')
+
+        self.__clear_frame(cvc)
+
+        frame = Frame(cvc, width=self.__grid_w, height=self.__grid_h, background='black', name='map_tools')
 
         toolbar = self.__init_map_toolbar(frame)
-        #map = self.__init_map_grid(frame, self.__grid_w, self.__grid_h)
+        map = self.__init_map_grid(frame, self.__grid_w, self.__grid_h)
         #toolbox = self.__init_map_toolbox(frame)
 
-        toolbar.pack(anchor='n', expand=True, fill='x')
-        #map.grid(column=0, row=1)
+        toolbar.pack(expand=True, fill='x')
+        map.pack(anchor='center', fill='both', expand=True)
         #toolbox.grid(column=0, row=2)
 
+        
         frame.pack(fill='both', expand=True)
+        self.__adjust_win()
         
 
     def __create_world(self):

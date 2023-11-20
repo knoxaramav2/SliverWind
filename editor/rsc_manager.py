@@ -111,6 +111,9 @@ class RSCManager:
         group = group.lower()
         col = col.lower()
 
+        path,_ = self.__asset_info(group, col, None)
+        os.makedirs(path)
+
         grp = self.__group(group)
         grp.collections.append(Collection(col))
 
