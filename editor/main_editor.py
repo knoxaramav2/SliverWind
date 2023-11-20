@@ -5,11 +5,12 @@ from tkinter import BooleanVar, Button, Canvas, Checkbutton, Frame, Label, Listb
 import tkinter
 from tkinter.ttk import Notebook
 from os.path import dirname, join
+from gridmap import GridManager
 from icon import Icons, GetIcons
 from world_config import WorldConfig
 from editor_settings import EditorSettings
 import rsc_manager
-from rsc_manager import AType, RSCManager
+from rsc_manager import AType, Asset, RSCManager
 from file_manager import FileManager
 from ed_util import Util, GetUtil
 from PIL import ImageTk
@@ -25,6 +26,7 @@ class Window:
     __asset_btns: Frame = None
     __asset_slct: dict = {}
     __asset_pane: Frame = None
+    __curr_asset: Asset
 
     __colls     : dict = {}
 
@@ -41,6 +43,7 @@ class Window:
     __icons     : Icons
     __rsc_man   : RSCManager = None
     __file_man  : FileManager = None
+    __map_man   : GridManager = None
     __settings  : EditorSettings = None
     __world     : WorldConfig = None
 
@@ -70,6 +73,9 @@ class Window:
         for y in range(0, self.__grid_h):
             for x in range(0, self.__grid_w):
                 self.__spacer(cvc, x, y)
+
+    def __get_ico(self, imgname:str, sz=16):
+        return ImageTk.PhotoImage(self.__icons.icons[imgname][0].resize((sz,sz), resample=2))
 
     def __validate_ctrl_state(self):
         state = 'normal' if self.__world != None else 'disabled'
@@ -173,6 +179,15 @@ class Window:
     def __init_atlas(self, cvc):
         pass
 
+    def __click_map_grid(self, abtn:Button):
+        if abtn.rsc == None or self.__curr_asset == None: return
+        
+        if self.__curr_asset.atype == AType.sprite:
+            abtn.configure(image=self.__curr_asset.rsc)
+
+    def __click_asset_grid(self, abtn:Button):
+        self.__curr_asset = abtn.asset
+
     def __refresh_select_frame(self):
         group, col = self.__get_asset_select()
         frame:Frame = self.__asset_slct[group]
@@ -184,6 +199,9 @@ class Window:
         for i in range(0, len(assets)):
             a = assets[i]
             b = Button(frame, width=16, height=16, image=a.rsc)
+            b.asset = a
+            b.configure(command=lambda:self.__click_asset_grid(b))
+
             x = i %5
             y = int(i/5)
             b.grid(column=x, row=y)
@@ -240,10 +258,10 @@ class Window:
         btnf = Frame(cvc)
         self.__asset_btns = btnf
 
-        ip = ImageTk.PhotoImage(self.__icons.icons['import'][0].resize((16,16), resample=2))
-        rp = ImageTk.PhotoImage(self.__icons.icons['cross'][0].resize((16,16), resample=2))
-        nc = ImageTk.PhotoImage(self.__icons.icons['newfolder'][0].resize((16,16), resample=2))
-        rc = ImageTk.PhotoImage(self.__icons.icons['remfolder'][0].resize((16,16), resample=2))
+        ip = self.__get_ico('import')
+        rp = self.__get_ico('cross')
+        nc = self.__get_ico('newfolder')
+        rc = self.__get_ico('remfolder')
 
         imp_btn = Button(btnf, image=ip)
         imp_btn.img = ip
@@ -283,8 +301,64 @@ class Window:
         tabs.grid(column=0, row=1)
         tabf.pack(fill='both', expand=1)
 
-    def __init_map(self, cvc):
+    def __new_map(self, cvc):
         pass
+
+    def __remove_map(self, cvc):
+        pass
+
+    def __init_map_toolbar(self, cvc):
+        frame = Frame(cvc, width=self.__width/2, height=25, background='purple')
+
+        new_img = self.__get_ico('newmap')
+        rem_img = self.__get_ico('remmap')
+
+        new_map = Button(frame, image=new_img)
+        new_map.img = new_img
+        rem_map = Button(frame, image=rem_img)
+        rem_map.img = rem_img
+
+        new_map.configure(command=lambda:self.__new_map(cvc))
+        rem_map.configure(command=lambda:self.__remove_map(cvc))
+
+        rem_map.pack(anchor='e', padx=5)
+        new_map.pack(anchor='e', padx=5)
+
+        return frame
+    
+    def __init_map_grid(self, cvc, w:int, h:int):
+        frame = Frame(cvc)
+
+        for y in range(0, h):
+            for x in range(0, w):
+                cell = Label(cvc, bd=1, borderwidth=1,
+                        fg='white', background='grey',
+                        width=2, height=1,
+                        highlightthickness=1, bg='black')
+                cell.grid(row=y, column=x, padx=0, pady=0)
+
+        return frame
+    
+    def __init_map_toolbox(self, cvc):
+        frame = Frame(cvc)
+
+
+        return frame
+
+
+    def __init_map(self, cvc):
+        frame = Frame(cvc, width=self.__width, height=self.__height, background='black')
+
+        toolbar = self.__init_map_toolbar(frame)
+        #map = self.__init_map_grid(frame, self.__grid_w, self.__grid_h)
+        #toolbox = self.__init_map_toolbox(frame)
+
+        toolbar.pack(anchor='n', expand=True, fill='x')
+        #map.grid(column=0, row=1)
+        #toolbox.grid(column=0, row=2)
+
+        frame.pack(fill='both', expand=True)
+        
 
     def __create_world(self):
 
@@ -303,6 +377,7 @@ class Window:
 
         self.__init_configs()
         self.__init_assets(self.__assetlib)
+        self.__init_map(self.__map)
         self.__validate_ctrl_state()
         
     def __load_world(self, path:str=None):
@@ -326,6 +401,7 @@ class Window:
         self.__init_configs(path)
         self.__validate_ctrl_state()
         self.__init_assets(self.__assetlib)
+        self.__init_map(self.__map)
         self.__refresh_select_frame()
 
     def __save_world(self):
@@ -397,6 +473,7 @@ class Window:
             if self.__world == None != path:
                 self.__world = WorldConfig(path, self.__rsc_man)
                 self.__world.open(self.__root)
+                self.__map_man = GridManager()
 
         if self.__asset_nb != None:
             self.__update_coll_menu()
@@ -437,7 +514,7 @@ class Window:
         self.__map.grid(sticky='NW', column=1, row=0)
         self.__assetlib.grid(sticky='NE', column=2, row=0)
 
-        self.__clean_grid(self.__map)
+        #self.__clean_grid(self.__map)
         self.__init_menu(r)
         self.__init_atlas(self.__atlas)
         self.__init_assets(self.__assetlib)
