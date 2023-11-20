@@ -38,6 +38,6 @@ class FileManager:
         self.__rsc = rman
         self.__util = GetUtil()
         self.__def_dirs =[
-            'rsc', 'rsc/sprites', 'rsc/sprites/fg', 'rsc/sprites/bg', 'rsc/audio',
+            'rsc', 'rsc/sprites', 'rsc/audio',
             'rsc/scripts', 'rsc/fonts', 'maps', 'meta'
         ]

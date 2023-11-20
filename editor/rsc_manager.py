@@ -1,5 +1,6 @@
 
 import shutil
+from PIL import Image, ImageTk
 from tkinter import StringVar, Tk
 from ed_util import Util, GetUtil
 from enum import Enum
@@ -22,13 +23,36 @@ AType = Enum(
 
 class Asset:
 
-    type        : AType
+    atype        : AType
     name        : str
     path        : str
+    rsc         : any
+
+    def __load_script(self):
+        pass
+
+    def __load_audio(self):
+        pass
+
+    def __load_font(self):
+        pass
+
+    def __load_sprite(self):
+        img = Image.open(self.path).convert('RGBA')
+        img = img.resize((16,16), resample=3)
+        self.rsc = ImageTk.PhotoImage(img)
+
+    def load(self):
+        
+        match self.atype:
+            case AType.sprite: self.__load_sprite()
+            case AType.audio: self.__load_audio()
+            case AType.script: self.__load_script()
+            case AType.font: self.__load_font()
 
     def __init__(self, name:str, atype:AType, path:str) -> None:
         self.name = name
-        self.type = atype
+        self.atype = atype
         self.path = path
 
 class Collection:
@@ -107,6 +131,19 @@ class RSCManager:
 
         return [t.name for t in grp.collections]
 
+    def get_assets(self, group:str, col:str):
+
+        collect = self.__collection(group, col)
+
+        return collect.assets
+
+    def type_extensions(self, atype:AType):
+        match atype:
+            case AType.audio: return AUDIO_EXT
+            case AType.font: return FONT_EXT
+            case AType.sprite: return SPRITE_EXT
+            case AType.script: return SCRIPT_EXT
+
     def import_asset(self, src:str, group:str, col:str):
         
         group = group.lower()
@@ -115,8 +152,6 @@ class RSCManager:
         if not os.path.exists(src): return False
 
         name = os.path.basename(src)
-        dst = self.__util.sprites_uri
-        ast = AType.sprite
         
         dst, ast = self.__asset_info(group, col, name)
 
@@ -130,7 +165,9 @@ class RSCManager:
 
         shutil.copyfile(src, dst)
 
-        self.__collection(group, col).assets.append(Asset(name, ast, dst))
+        asset = Asset(name, ast, dst)
+        asset.load()
+        self.__collection(group, col).assets.append(asset)
 
         return True
 
@@ -153,7 +190,7 @@ class RSCManager:
             for coll in grp.collections:
                 ret += f'{coll.name}:'
                 for ast in coll.assets:
-                    ret += f'{ast.name},{ast.type.name},{ast.path};'
+                    ret += f'{ast.name},{ast.atype.name},{ast.path};'
                 ret += '@'
             ret += '|'
         
@@ -189,38 +226,29 @@ class RSCManager:
 
                     name, atype, path = a.split(',')
                     v_asset = Asset(name, AType[atype], path)
+                    v_asset.load()
                     v_coll.assets.append(v_asset)
                     
-        pass
-
     def __group(self, group:str) -> Group:
         return [t for t in self.__asset_groups if t.name == group][0]
     
     def __collection(self, group:str, coll:str) -> Collection:
         grp = self.__group(group)
-        return [t for t in grp if t.name == coll][0]
+        collect = [t for t in grp.collections if t.name == coll]
+        if len(collect) == 0:
+            return None
+        return collect[0]
 
-    def __asset(self, group:str, coll:str, ast:str) -> Asset:
-        coll = self.__collection(group, coll)
-        return [t for t in self.coll if t.name == ast][0]
+    def __asset(self, group:str, col:str, name:str) -> Asset:
+        collection = self.__collection(group, col)
+        return [t for t in collection.assets if t.name == name][0]
 
     def __asset_info(self, group:str, col:str, name:str):
-        sgrp = None
+        
+        dst = self.__util.join(self.__util.rsc_uri, [group, col, name])
+        grp = self.__group(group)
 
-        if group == 'audio': 
-            dst = self.__util.aud_uri
-            ast = AType.audio
-        elif group == 'scripts':
-            dst = self.__util.script_uri
-            ast = AType.script
-        elif group == 'fonts':
-            dst = self.__util.font_uri
-            ast = AType.font
-        elif group == 'fg' or 'bg':
-            sgrp = group
-
-        ret = self.__util.join(dst, [sgrp, col, name])
-        return (ret, ast)
+        return (dst, grp.atype)
 
     def __init__(self, root:Tk) -> None:
         

@@ -11,13 +11,10 @@ class WorldConfig:
     __created   : str = None
     __lastwrite : str = None
 
-    last_fg_dir         : str = ''
-    last_bg_dir         : str = ''
     last_sprite_dir     : str = ''
     last_aud_dir        : str = ''
     last_script_dir     : str = ''
 
-    _path              : str
     __util              : Util
     __rsc               : RSCManager
 
@@ -35,8 +32,6 @@ class WorldConfig:
             match k:
                 case 'created': self.__created = v
                 case 'last_write': self.__lastwrite = v
-                case 'lfg': self.last_fg_dir = v
-                case 'lbg': self.last_bg_dir = v
                 case 'lsprite': self.last_sprite_dir = v
                 case 'laud': self.last_aud_dir = v
                 case 'lscript': self.last_script_dir = v
@@ -55,8 +50,6 @@ class WorldConfig:
         content = [
             f'created:{self.__created}\n',
             f'last_write:{datetime.now()}\n',
-            f'lfg:{self.last_fg_dir}\n',
-            f'lbg:{self.last_bg_dir}\n',
             f'lsprite:{self.last_sprite_dir}\n',
             f'laud:{self.last_aud_dir}\n',
             f'lscript:{self.last_script_dir}\n',
@@ -74,8 +67,6 @@ class WorldConfig:
 
         self.__created = str(datetime.now())
         self.__lastwrite = str(datetime.now())
-        self.last_fg_dir = self.__util.fg_uri
-        self.last_bg_dir = self.__util.bg_uri
         self.last_sprite_dir = self.__util.sprites_uri
         self.last_aud_dir = self.__util.aud_uri
         self.last_script_dir = self.__util.script_uri

@@ -23,7 +23,7 @@ class Window:
 
     __asset_nb  : Notebook = None
     __asset_btns: Frame = None
-    __asset_slct: dict
+    __asset_slct: dict = {}
     __asset_pane: Frame = None
 
     __colls     : dict = {}
@@ -81,45 +81,23 @@ class Window:
         
         group, coll = self.__get_asset_select()
 
-        ext = []
-        ext_tip = ''
-        spath = self.__util.rsc_uri
-
-        match group:
-            case 'bg':
-                spath = self.__world.last_bg_dir
-                ext = rsc_manager.SPRITE_EXT
-                ext_tip = 'Image'
-            case 'fg':
-                spath = self.__world.last_fg_dir
-                ext = rsc_manager.SPRITE_EXT
-                ext_tip = 'Image'
-            case 'actors':
-                spath = self.__world.last_sprite_dir
-                ext = rsc_manager.SPRITE_EXT
-                ext_tip = 'Image'
-            case 'scripts':
-                spath = self.__world.last_script_dir
-                ext = rsc_manager.SCRIPT_EXT
-                ext_tip = 'Script'
-            case 'audio':
-                spath = self.__world.last_aud_dir
-                ext = rsc_manager.AUDIO_EXT
-                ext_tip = 'Script'
+        ext = self.__rsc_man.type_extensions(AType.sprite)
+        ext_tip = 'Image'
+        spath = self.__world.last_sprite_dir
             
-        
         files = fd.askopenfilenames(initialdir=spath, filetypes=[(ext_tip, ext)], )
 
         if len(files) == 0:
             return 
         
-        self.__world.last_bg_dir = os.path.dirname(files[0])
+        self.__world.last_sprite_dir = os.path.dirname(files[0])
         
         for f in files:
             self.__rsc_man.import_asset(f, group, coll.get())
 
         self.__world.save()
         self.__update_coll_menu()
+        self.__refresh_select_frame()
 
     def __remove_asset(self):
 
@@ -165,6 +143,7 @@ class Window:
         
         self.__rsc_man.add_collection(group, coll)
         self.__update_coll_menu()
+        self.__refresh_select_frame()
         var.set(coll)
 
     def __remove_collection(self):
@@ -176,6 +155,7 @@ class Window:
         
         self.__rsc_man.remove_collection(group, coll.get())
         self.__update_coll_menu()
+        self.__refresh_select_frame()
 
         if not self.__rsc_man.collection_exists(group, coll.get()):
             coll.set('default')
@@ -193,13 +173,26 @@ class Window:
     def __init_atlas(self, cvc):
         pass
 
+    def __refresh_select_frame(self):
+        group, col = self.__get_asset_select()
+        frame:Frame = self.__asset_slct[group]
+        assets = self.__rsc_man.get_assets(group, col.get())
+
+        for child in frame.winfo_children():
+            child.destroy()
+
+        for i in range(0, len(assets)):
+            a = assets[i]
+            b = Button(frame, width=16, height=16, image=a.rsc)
+            x = i %5
+            y = int(i/5)
+            b.grid(column=x, row=y)
+
     def __make_select_frame(self, cvc, group:str):
 
-        frame = Frame(cvc, background='green',
+        frame = Frame(cvc, background='orange',
                       width=self.__asset_w, height=self.__asset_h)
-
-        
-
+        self.__asset_slct[group] = frame
         return frame
 
     def __init_tab(self, cvc, group):
@@ -333,6 +326,7 @@ class Window:
         self.__init_configs(path)
         self.__validate_ctrl_state()
         self.__init_assets(self.__assetlib)
+        self.__refresh_select_frame()
 
     def __save_world(self):
         print('Saving...')
@@ -400,7 +394,7 @@ class Window:
         self.__file_man = FileManager(self.__rsc_man)
 
         if path != None:
-            if self.__world == None or self.__world._path != path:
+            if self.__world == None != path:
                 self.__world = WorldConfig(path, self.__rsc_man)
                 self.__world.open(self.__root)
 
