@@ -332,6 +332,10 @@ class Window:
         self.__asset_slct[group] = frame
         return frame
 
+    def __on_asset_coll_change(self, *args):
+        grp, col = self.__get_asset_select()
+        self.__refresh_select_frame(grp, col.get())
+
     def __init_tab(self, cvc, group):
         frame = Frame(cvc, background='yellow')
         dropframe = Frame(frame, background='blue')
@@ -339,6 +343,7 @@ class Window:
         var = self.__rsc_man.get_coll_var(group)
         options = self.__rsc_man.list_collections(group)
         var.set(options[0])
+        var.trace('w', self.__on_asset_coll_change)
         dropdown = OptionMenu(dropframe, var, *options)
 
         sel_frame = self.__make_select_frame(frame, group)
