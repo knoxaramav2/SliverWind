@@ -59,10 +59,9 @@ class WorldConfig:
             f'lbg:{self.last_bg_dir}\n',
             f'lsprite:{self.last_sprite_dir}\n',
             f'laud:{self.last_aud_dir}\n',
-            f'lscript:{self.last_script_dir}\n'
+            f'lscript:{self.last_script_dir}\n',
+            f'rsc:{self.__rsc.serialize()}\n'
         ]
-
-        content.extend(self.__rsc.serialize())
 
         path = self.__util.join(self.__dir, self.__name)
         f = open(path, 'w')

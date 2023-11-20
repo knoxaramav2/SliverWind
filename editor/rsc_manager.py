@@ -31,22 +31,42 @@ class Asset:
         self.type = atype
         self.path = path
 
+class Collection:
+
+    name        : str
+    assets      : list[Asset]
+    
+    def __init__(self, name:str):
+        self.name = name
+        self.assets = []
+
+class Group:
+    
+    name        : str
+    atype       : AType
+    collections : list[Collection]
+    col_var     : StringVar
+
+    def __init__(self, name:str, atype:AType, root:Tk):
+        self.name = name
+        self.atype = atype
+        self.collections = []
+        self.col_var = StringVar(root)
+
 class RSCManager:
 
-    __col_selects         : dict
-
-    __asset_groups      : dict
+    __asset_groups      : list[Group]
 
     __util              : Util
     __root              : Tk
 
     def get_coll_var(self, group:str):
         group = group.lower()
-        return self.__col_selects[group]
+        return self.__group(group).col_var
 
     def add_coll_var(self, group:str, var):
         group = group.lower()
-        self.__col_selects[group] = var
+        self.__group(group).col_var = var
     
     def remove_collection(self, group:str, col:str):
         group = group.lower()
@@ -57,7 +77,9 @@ class RSCManager:
 
         path,_ = self.__asset_info(group, col, None)
         shutil.rmtree(path)
-        del self.__asset_groups[group][col]
+        grp = self.__group(group)
+        coll = self.__collection(group, col)
+        grp.collections.remove(coll)
 
         return True
 
@@ -65,24 +87,25 @@ class RSCManager:
         group = group.lower()
         col = col.lower()
 
-        self.__asset_groups[group][col] = {}
+        grp = self.__group(group)
+        grp.collections.append(Collection(col))
 
     def collection_exists(self, group:str, col:str):
         group = group.lower()
         col = col.lower()
 
-        return col in self.__asset_groups[group]
+        grp = self.__group(group)
+        return len([t for t in grp.collections if t.name == col]) > 0
+
+    def list_groups(self) -> list[str]:
+        return [t.name for t in self.__asset_groups]
 
     def list_collections(self, group:str):
 
         group = group.lower()
+        grp = self.__group(group)
 
-        ret = []
-        grp = self.__asset_groups[group]
-        for k,v in grp.items():
-            ret.append(k)
-        
-        return ret
+        return [t.name for t in grp.collections]
 
     def import_asset(self, src:str, group:str, col:str):
         
@@ -107,7 +130,7 @@ class RSCManager:
 
         shutil.copyfile(src, dst)
 
-        self.__asset_groups[group][col][name] = Asset(name, ast, dst)
+        self.__collection(group, col).assets.append(Asset(name, ast, dst))
 
         return True
 
@@ -117,64 +140,63 @@ class RSCManager:
         col = col.lower()
         name = name.lower()
 
-        asset = self.__asset_groups[group][col][name]
-        path,_ = self.__asset_info(group, col, name)
+        asset = self.__asset(group, col, name)
 
         os.remove(asset.path)
-        del self.__asset_groups[group][col][name]
-
-        pass
+        self.__collection(group, col).assets.remove(asset)
 
     def serialize(self):
-        ret = 'rsc:'
-        for k_grp, v_grp in self.__asset_groups.items():
-            ret += f'{k_grp}:'
-            for k_col, v_col in v_grp.items():
-                ret += f'{k_col}:'
-                for k_ast, v_ast in v_col.items():
-                    ret += f'{v_ast.name},{v_ast.type.name},{v_ast.path};'
+        ret = ''
+        
+        for grp in self.__asset_groups:
+            ret += f'{grp.name}={grp.atype.name}:'
+            for coll in grp.collections:
+                ret += f'{coll.name}:'
+                for ast in coll.assets:
+                    ret += f'{ast.name},{ast.type.name},{ast.path};'
                 ret += '@'
             ret += '|'
         
-        return ret
+        return ret[:-1]
 
     def deserialize(self, valstr:str):
         
         if valstr == None or valstr == '':
             return
 
-        self.__asset_groups = {}
-        self.__col_selects = {}
-
+        self.__asset_groups = []
         groups = valstr.split('|')
-        for grp_data in groups:
-            if grp_data == '': continue
-            grp_terms = grp_data.split(':', 1)
-            grp_name = grp_terms[0]
-            grp_cols = '' if len(grp_terms) == 1 else grp_terms[1]
-            self.__asset_groups[grp_name] = {}
-            self.__col_selects[grp_name] = StringVar(self.__root, 'default')
+        
+        for g in groups:
+            g_f, g_l = g.split(':', 1)
+            g_name, g_type = g_f.split('=')
+            v_group = Group(g_name, AType[g_type], self.__root)
+            self.__asset_groups.append(v_group)
 
-            colls = grp_cols.split('@')
-            for col_data in colls:
-                if col_data == '': continue
-                coll_terms = col_data.split(':', 1)
-                coll_name = coll_terms[0]
-                coll_asts = '' if len(coll_terms) == 1 else coll_terms[1]
-                self.__asset_groups[grp_name][coll_name] = {}
+            colls = g_l.split('@')
+            for c in colls:
+                c_f, c_l = c.split(':', 1)
+                v_coll = Collection(c_f)
+                v_group.collections.append(v_coll)
 
-                assets = coll_asts.split(';')
-                for ast in assets:
-                    if ast == '': continue
-                    args = ast.split(',')
-                    if len(args) != 3:
-                        print(f'WRN: Invalid asset: {grp_name}:{coll_name}::{ast}')
-                        continue
-                    asset = Asset(args[0], args[1], args[2])
-                    self.__asset_groups[grp_name][coll_name][args[0]] = asset
+                assets = c_l.split(';')
+                for a in assets:
+                    name, atype, path = a.split(',')
+                    v_asset = Asset(name, AType[atype], path)
+                    v_coll.assets.append(v_asset)
+                    
+        pass
 
-    def list_groups(self):
-        return list(self.__asset_groups.keys())
+    def __group(self, group:str) -> Group:
+        return [t for t in self.__asset_groups if t.name == group][0]
+    
+    def __collection(self, group:str, coll:str) -> Collection:
+        grp = self.__group(group)
+        return [t for t in grp if t.name == coll][0]
+
+    def __asset(self, group:str, coll:str, ast:str) -> Asset:
+        coll = self.__collection(group, coll)
+        return [t for t in self.coll if t.name == ast][0]
 
     def __asset_info(self, group:str, col:str, name:str):
         sgrp = None
@@ -199,12 +221,14 @@ class RSCManager:
         self.__util = GetUtil()
         self.__root = root
 
-        self.__col_selects = {}
+        self.__asset_groups = [
+            Group('actor', AType.sprite, self.__root),
+            Group('fg', AType.sprite, self.__root),
+            Group('bg', AType.sprite, self.__root),
+            Group('audio', AType.audio, self.__root),
+            Group('script', AType.script, self.__root),
+        ]
 
-        self.__asset_groups = {
-            'actor':{}, 'fg':{}, 'bg':{}, 'audio':{}, 'script':{}
-        }
+        for g in self.__asset_groups:
+            g.collections.append(Collection('default'))
 
-        for k,v in self.__asset_groups.items():
-            v['default'] = {}
-            self.__col_selects[k] = StringVar(self.__root, 'default')
