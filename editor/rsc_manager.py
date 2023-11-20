@@ -97,8 +97,8 @@ class RSCManager:
         grp = self.__group(group)
         return len([t for t in grp.collections if t.name == col]) > 0
 
-    def list_groups(self) -> list[str]:
-        return [t.name for t in self.__asset_groups]
+    def list_groups(self, atype:AType=None) -> list[str]:
+        return [t.name for t in self.__asset_groups if t.atype == atype or atype == None]
 
     def list_collections(self, group:str):
 
@@ -168,6 +168,8 @@ class RSCManager:
         groups = valstr.split('|')
         
         for g in groups:
+            if g == '': continue
+
             g_f, g_l = g.split(':', 1)
             g_name, g_type = g_f.split('=')
             v_group = Group(g_name, AType[g_type], self.__root)
@@ -175,12 +177,16 @@ class RSCManager:
 
             colls = g_l.split('@')
             for c in colls:
+                if c == '': continue
+
                 c_f, c_l = c.split(':', 1)
                 v_coll = Collection(c_f)
                 v_group.collections.append(v_coll)
 
                 assets = c_l.split(';')
                 for a in assets:
+                    if a == '': continue
+
                     name, atype, path = a.split(',')
                     v_asset = Asset(name, AType[atype], path)
                     v_coll.assets.append(v_asset)

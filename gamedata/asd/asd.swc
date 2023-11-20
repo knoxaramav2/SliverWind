@@ -1,8 +1,8 @@
 created:2023-11-19 18:32:34.307692
-last_write:2023-11-19 18:33:01.146507
+last_write:2023-11-19 18:50:10.808529
 lfg:C:\Users\Pat Scott\source\repos\SliverWind\gamedata\asd\rsc\sprites\fg
 lbg:C:\Users\Pat Scott\source\repos\SliverWind\gamedata\asd\rsc\sprites\bg
 lsprite:C:\Users\Pat Scott\source\repos\SliverWind\gamedata\asd\rsc\sprites
 laud:C:\Users\Pat Scott\source\repos\SliverWind\gamedata\asd\rsc\aud
 lscript:C:\Users\Pat Scott\source\repos\SliverWind\gamedata\asd\rsc\scripts
-rsc:actor=sprite:default:@|fg=sprite:default:@|bg=sprite:default:@|audio=audio:default:@|script=script:default:@
+rsc:actor=sprite:default:@|fg=sprite:default:@asd:@|bg=sprite:default:@|audio=audio:default:@|script=script:default:@

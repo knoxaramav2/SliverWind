@@ -9,7 +9,7 @@ from icon import Icons, GetIcons
 from world_config import WorldConfig
 from editor_settings import EditorSettings
 import rsc_manager
-from rsc_manager import RSCManager
+from rsc_manager import AType, RSCManager
 from file_manager import FileManager
 from ed_util import Util, GetUtil
 from PIL import ImageTk
@@ -34,6 +34,8 @@ class Window:
     __atlas_w   : int = 250
     __grid_w    : int = 40
     __grid_h    : int = 25
+    __asset_w   : int = 200
+    __asset_h   : int = 200
 
     __util      : Util
     __icons     : Icons
@@ -191,22 +193,12 @@ class Window:
     def __init_atlas(self, cvc):
         pass
 
-    def __make_select_frame(self, cvc, group:str, type:str):
+    def __make_select_frame(self, cvc, group:str):
 
-        frame = Frame(cvc, background='green')
+        frame = Frame(cvc, background='green',
+                      width=self.__asset_w, height=self.__asset_h)
 
-        if type == 'list':
-            pass
-            # for i in range (0, 10):
-            #     b = Button(frame, text='Test')
-            #     b.pack(anchor='w', expand=1, fill='x') 
-        elif type == 'grid':
-            pass
-            # for i in range (0, 20):
-            #     b = Button(frame, width=2, height=1)    
-            #     x = int(i/5)
-            #     y = i%5
-            #     b.grid(column=x, row=y, padx=1, pady=1)
+        
 
         return frame
 
@@ -219,8 +211,7 @@ class Window:
         var.set(options[0])
         dropdown = OptionMenu(dropframe, var, *options)
 
-        atype = 'list' if group == 'script' or group == 'audio' else 'grid'
-        sel_frame = self.__make_select_frame(frame, group, atype)
+        sel_frame = self.__make_select_frame(frame, group)
 
         dropdown.pack(fill='x')
         dropframe.pack(anchor='nw', side='top', fill='x')
@@ -241,7 +232,7 @@ class Window:
         
         tabs = self.__asset_nb = Notebook(cvc)
 
-        groups = self.__rsc_man.list_groups()
+        groups = self.__rsc_man.list_groups(AType.sprite)
 
         for group in groups:
             tab = self.__init_tab(tabs, group)
