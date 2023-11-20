@@ -156,6 +156,7 @@ class RSCManager:
 
         name = os.path.basename(src)
         
+        self.__guarentee_import(src, group, col)
         dst, ast = self.__asset_info(group, col, name)
 
         dirname = os.path.dirname(dst)
@@ -173,6 +174,43 @@ class RSCManager:
         self.__collection(group, col).assets.append(asset)
 
         return True
+
+    def __guarentee_import(self, path:str, group:str, coll:str):
+        
+        grps = [t for t in self.__asset_groups if t.name == group]
+        if len(grps) == 0:
+            ext = '.' + path.split('.')[1]
+            atype = None
+            if ext in SPRITE_EXT: atype = AType.sprite
+            elif ext in AUDIO_EXT: atype = AType.audio
+            elif ext in SCRIPT_EXT: atype = AType.script
+            elif ext in FONT_EXT: atype = AType.font
+
+            new_group = Group(group, atype, self.__root)
+            self.__asset_groups.append(new_group)
+
+        grp = self.__group(group)
+        colls = [t for t in grp.collections if t.name == coll]
+        if len(colls) == 0:
+            col = Collection(coll)
+            grp.collections.append(col)
+        
+        
+    def import_default_assets(self):
+
+        uri = self.__util.defaults_uri
+        dst = self.__util.rsc_uri
+
+        for path, subdirs, files in os.walk(uri):
+            for f in files:
+                partial = path.removeprefix(uri)
+                group = os.path.dirname(partial).strip('\\').strip('/')
+                coll = os.path.basename(partial).strip('\\').strip('/')
+                full = os.path.join(path, f)
+                self.import_asset(full, group, coll)
+
+            pass
+
 
     def remove_asset(self, group:str, col:str, name:str):
 
@@ -263,7 +301,7 @@ class RSCManager:
             Group('fg', AType.sprite, self.__root),
             Group('bg', AType.sprite, self.__root),
             Group('audio', AType.audio, self.__root),
-            Group('script', AType.script, self.__root),
+            Group('scripts', AType.script, self.__root),
         ]
 
         for g in self.__asset_groups:

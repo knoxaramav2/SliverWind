@@ -18,7 +18,7 @@ from PIL import ImageTk
 
 class DynamicDiolog(tkinter.Toplevel):
 
-    def __init__(self, parent, title:str, prompts:[tuple[str,StringVar|BooleanVar|IntVar]]):
+    def __init__(self, parent, title:str, prompts:[tuple[str,StringVar|BooleanVar|IntVar|list[str], StringVar|None]]):
         
         tkinter.Toplevel.__init__(self, parent)
         self.resizable(False, False)
@@ -35,6 +35,10 @@ class DynamicDiolog(tkinter.Toplevel):
                 input = Checkbutton(self, variable=p[1])
             elif isinstance(p[1], IntVar):
                 input = Entry(self, textvariable=p[1], validate='all', validatecommand=(self.register(self.__validate_entry), '%P'))
+            elif isinstance(p[1], list[str]):
+                if len(p[1]) > 0:
+                    p[2].set(p[1][0])
+                input = OptionMenu(self, p[2], *p[1])
 
             lbl.grid(column=0, row=i)
             input.grid(column=1, row=i)
@@ -172,21 +176,34 @@ class Window:
         self.__world.save()
         self.__update_coll_menu()
 
-    def __update_coll_menu(self):
-        group,_ = self.__get_asset_select()
-        group = group.lower()
-        var = self.__rsc_man.get_coll_var(group)
-        old_sel = var.get()
-        var.set('')
-        cols = self.__rsc_man.list_collections(group)
+    def __update_coll_menu(self, refresh_all=False):
 
-        col:OptionMenu = self.__colls[group]
-        col['menu'].delete(0, 'end')
+        to_refresh = []
 
-        for c in cols:
-            col['menu'].add_command(label=c, command=tkinter._setit(var, c))
+        if refresh_all:
+            to_refresh = self.__rsc_man.list_groups(AType.sprite)
+            pass
+        else:
+            to_refresh.append(self.__get_asset_select()[0])
 
-        var.set(old_sel)
+        for tr in to_refresh:
+            group = tr
+            group = group.lower()
+            var = self.__rsc_man.get_coll_var(group)
+            old_sel = var.get()
+            var.set('')
+            cols = self.__rsc_man.list_collections(group)
+
+            col:OptionMenu = self.__colls[group]
+            col['menu'].delete(0, 'end')
+
+            for c in cols:
+                col['menu'].add_command(label=c, command=tkinter._setit(var, c))
+
+            var.set(old_sel)
+
+        self.__refresh_select_frames()
+
         self.__world.save()
 
     def __add_collection(self):
@@ -232,12 +249,31 @@ class Window:
     def __init_atlas(self, cvc):
         pass
 
-    def __click_map_grid(self, abtn:Button):
+    def __click_map_grid(self, cvc, abtn:Button, shift=False, ctrl=False):
         if self.__curr_asset == None or self.__curr_asset.rsc == None: return
         
-        overdraw = self.__md_above.get()
-        block = self.__md_block.get()
-        event = self.__md_event.get()
+        overdraw = shift and not ctrl
+        block = ctrl and not shift
+        event = ctrl and shift
+
+        x, y = abtn.pos
+        map = self.__map_man.curr_map()
+        block = map.get_block(x, y)
+        block.overdraw = not block.overdraw
+        block.block = not block.block
+
+        if event:
+            collide = BooleanVar(cvc, value=False)
+            transport = StringVar(cvc, value='')
+            options = map.list_neightbors()
+            if len(options) > 0:
+                transport.set(options[0])
+
+            input = DynamicDiolog(cvc, 'Event Select', [
+                ('On Contact', collide),
+                ('Transport', options, transport),
+                ('Script', options, transport)
+            ])        
 
         bg = 'white'
 
@@ -247,8 +283,9 @@ class Window:
 
         bc = 'dodger blue' if event else 'white'
         bc = 'red'
+        fg = 'green'
         if self.__curr_asset.atype == AType.sprite:
-            abtn.configure(image=self.__curr_asset.rsc, background=bg, fg=bc,
+            abtn.configure(image=self.__curr_asset.rsc, background=bg, fg=fg,
                            highlightcolor=bc, relief='ridge')
         
         abtn.block = block
@@ -261,10 +298,20 @@ class Window:
     def __click_asset_grid(self, abtn:Button):
         self.__curr_asset = abtn.asset
 
-    def __refresh_select_frame(self):
-        group, col = self.__get_asset_select()
+    def __refresh_select_frames(self):
+
+        for group in self.__asset_slct.keys():
+            coll = self.__rsc_man.get_coll_var(group).get()
+            self.__refresh_select_frame(group, coll)
+
+    def __refresh_select_frame(self, group:str=None, col:str=None):
+
+        if group == None or col== None:
+            group, col = self.__get_asset_select()
+            col = col.get()
+
         frame:Frame = self.__asset_slct[group]
-        assets = self.__rsc_man.get_assets(group, col.get())
+        assets = self.__rsc_man.get_assets(group, col)
 
         self.__clear_frame(frame)
 
@@ -462,7 +509,7 @@ class Window:
                 cell.block = False
                 cell.event = False
                 cell.overdraw = False
-                cell.configure(command=partial(self.__click_map_grid, cell))
+                cell.configure(command=partial(self.__click_map_grid, frame, cell))
                 cell.grid(row=y, column=x, padx=0, pady=0)
 
         return frame
@@ -473,7 +520,14 @@ class Window:
         if curr == None:
             return
         
-        self.__toolbox_txt['POS'].configure(text=f'POS: {curr.pos[0]},{curr.pos[1]}')
+        x,y = curr.pos
+
+        map = self.__map_man.curr_map()
+        block = map.get_block(x, y)
+
+        self.__toolbox_txt['POS'].configure(text=f'POS: ({x}, {y})')
+        self.__toolbox_txt['BLOCK'].configure(text=f'BLOCK: {block.block}')
+        self.__toolbox_txt['EVENT'].configure(text=f'EVENT: {block.event}')
 
 
     def __init_map_toolbox(self, cvc):
@@ -522,8 +576,15 @@ class Window:
         frame.pack(fill='both', expand=True)
         self.__adjust_win()
         
+    def __clear_configs(self):
+        self.__world = None
+        self.__rsc_man = None
+        self.__map_man = None
+        self.__file_man = None
 
     def __create_world(self):
+
+        self.__clear_configs()
 
         name = simpledialog.askstring('Create New World', 'World Name')
         
@@ -533,17 +594,21 @@ class Window:
 
         if name == None or name == '':
             return
+        
+        world_path = os.path.join(tpath, os.path.basename(tpath))
 
         self.__util.set_project_name(name)
-        self.__world = self.__file_man.new_world(name)
         self.__set_title(name)
-
-        self.__init_configs()
+        self.__init_configs(world_path)
+        self.__rsc_man.import_default_assets()
         self.__init_assets(self.__assetlib)
         self.__init_map(self.__map)
+        self.__update_coll_menu(refresh_all=True)
         self.__validate_ctrl_state()
         
     def __load_world(self, path:str=None):
+
+        self.__clear_configs()
 
         if path == None:
             path = dirname(dirname(__file__))
@@ -629,14 +694,13 @@ class Window:
         self.__root.title('SWedit '+title)
 
     def __init_configs(self, path:str = None):
+        self.__clear_configs()
         self.__rsc_man = RSCManager(self.__root)
         self.__file_man = FileManager(self.__rsc_man)
-
-        if path != None:
-            if self.__world == None != path:
-                self.__world = WorldConfig(path, self.__rsc_man)
-                self.__world.open(self.__root)
-                self.__map_man = GridManager()
+        self.__world = WorldConfig(path, self.__rsc_man)
+        #self.__file_man.new_world(self.__world)
+        self.__world.open(self.__root)
+        self.__map_man = GridManager()
 
         if self.__asset_nb != None:
             self.__update_coll_menu()
@@ -648,7 +712,7 @@ class Window:
         self.__util = GetUtil()
         self.__icons = GetIcons()
         self.__settings = EditorSettings()
-        self.__init_configs()
+        #self.__init_configs()
         r = self.__root
         w = self.__width
         h = self.__height
@@ -679,9 +743,9 @@ class Window:
 
         #self.__clean_grid(self.__map)
         self.__init_menu(r)
-        self.__init_atlas(self.__atlas)
-        self.__init_assets(self.__assetlib)
-        self.__init_map(self.__map)
+        #self.__init_atlas(self.__atlas)
+        #self.__init_assets(self.__assetlib)
+        #self.__init_map(self.__map)
 
         self.__adjust_win()
         self.__validate_ctrl_state()

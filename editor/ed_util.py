@@ -4,6 +4,8 @@ from os.path import dirname, join
 class Util:
 
     base_uri    : str
+    editor_uri  : str
+    defaults_uri: str
     gamedata_uri: str
     icon_uri    : str
     map_uri     : str
@@ -20,6 +22,8 @@ class Util:
     def __load_path(self, name:str=''):
         name = os.path.basename(name).split('.')[0]
         self.base_uri = dirname(dirname(__file__))
+        self.editor_uri = join(self.base_uri, 'editor')
+        self.defaults_uri = join(self.editor_uri, 'common')
         self.gamedata_uri = join(self.base_uri, 'gamedata')
         self.map_uri = join(self.gamedata_uri, name)
         

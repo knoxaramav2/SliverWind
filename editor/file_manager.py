@@ -23,12 +23,12 @@ class FileManager:
     def load_world(self, name):
         self.__proj_dir = self.__util.map_uri
 
-    def new_world(self, name) -> WorldConfig:
+    def new_world(self, world:WorldConfig) -> WorldConfig:
         self.__proj_dir = self.__util.map_uri
 
         self.__create_def_dirs()
 
-        path = join(self.__proj_dir, name+'.swc')
+        path = join(self.__proj_dir, world.name()+'.swc')
         world_cfg = WorldConfig(path, self.__rsc)
         world_cfg.create()
 

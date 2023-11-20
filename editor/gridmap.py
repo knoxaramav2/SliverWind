@@ -40,7 +40,7 @@ class GridMap(ISerializeable):
 
     id          : int
     name        : str
-    grid        : list[list[Asset]]
+    grid        : list[list[Block]]
     
     North       : GridMap = None
     South       : GridMap = None
@@ -60,7 +60,14 @@ class GridMap(ISerializeable):
         for y in range(0, height):
             for x in range(0, width):
                 self.grid[x][y]
+
+    def list_neightbors(self):
+        ret = []
+
         
+
+        return ret
+
     def add_neighbor(self, map:GridMap, dir:Direction):
         match dir:
             case Direction.North:
@@ -76,16 +83,16 @@ class GridMap(ISerializeable):
                 self.West = map
                 map.East = self
 
-    def get_block(self, x:int, y:int):
+    def get_block(self, x:int, y:int) -> Block:
         return self.grid[x][y]
     
-    def place_block(self, x:int, y:int, block:Block):
+    def place_block(self, x:int, y:int, block:Block) -> Block:
         self.grid[x][y] = block
 
-    def size(self):
+    def size(self) -> tuple[int,int]:
         return (self.__width, self.__height)
 
-    def serialize(self, raw:str):
+    def serialize(self, raw:str) -> str:
         return ''
 
     def deserialize(self):

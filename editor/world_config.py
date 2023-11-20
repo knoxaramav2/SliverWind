@@ -76,12 +76,19 @@ class WorldConfig:
     def fullpath(self):
         return os.path.join(self.__dir, self.__name)
 
+    def name(self):
+        return self.__name
+
     def __init__(self, path:str, rman:RSCManager) -> None:
         self.__util = GetUtil()
         self.__rsc = rman
 
         self.__dir = os.path.dirname(path)
         self.__name = os.path.basename(path)
+
+        tsplit = self.__name.split('.')
+        if len(tsplit) == 1 or tsplit[len(tsplit)-1] != '.swc':
+            self.__name += '.swc'
 
         self.create()
         
