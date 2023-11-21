@@ -6,7 +6,7 @@ from tkinter import BooleanVar, Button, Canvas, Checkbutton, Entry, Frame, IntVa
 import tkinter
 from tkinter.ttk import Notebook
 from os.path import dirname, join
-from gridmap import GridManager, GridMap
+from gridmap import Block, Event, GridManager, GridMap
 from icon import Icons, GetIcons
 from world_config import WorldConfig
 from editor_settings import EditorSettings
@@ -18,10 +18,13 @@ from PIL import ImageTk
 
 class DynamicDiolog(tkinter.Toplevel):
 
-    def __init__(self, parent, title:str, prompts:[tuple[str,StringVar|BooleanVar|IntVar|list[str], StringVar|None]]):
+    def __init__(self, parent, title:str,options:list, prompts:[tuple[str,StringVar|BooleanVar|IntVar|list[str], StringVar|None]]):
         
         tkinter.Toplevel.__init__(self, parent)
+        self.title(title)
         self.resizable(False, False)
+
+        self.result = StringVar(self, 'Unknown')
 
         i = 0
         for p in prompts:
@@ -35,30 +38,38 @@ class DynamicDiolog(tkinter.Toplevel):
                 input = Checkbutton(self, variable=p[1])
             elif isinstance(p[1], IntVar):
                 input = Entry(self, textvariable=p[1], validate='all', validatecommand=(self.register(self.__validate_entry), '%P'))
-            elif isinstance(p[1], list[str]):
+            elif isinstance(p[1], list):
                 if len(p[1]) > 0:
                     p[2].set(p[1][0])
-                input = OptionMenu(self, p[2], *p[1])
+                else:
+                    p[2].set('')
+                input = OptionMenu(self, p[2], p[2].get(), *p[1])
 
             lbl.grid(column=0, row=i)
             input.grid(column=1, row=i)
 
             i += 1
 
-        self.accept_btn = Button(self, text='OK', command=self.__accept)
-        self.accept_btn.grid(column=2)
+        self.btns = []
+        j = 0
+        for opt in options:
+            btn = Button(self, text=opt, command=partial(self.__close, opt))
+            btn.grid(row = i, column=j)
+            self.btns.append(btn)
+            j += 1
 
     def __validate_entry(self, p):
         return str.isdigit(p)
 
-    def __accept(self, event=None):
+    def __close(self, result:str):
+        self.result.set(result)
         self.destroy()
 
     def show(self):
         self.wm_deiconify()
         self.focus_force()
         self.wait_window()
-        return
+        return self.result.get()
 
 
 class Window:
@@ -249,51 +260,83 @@ class Window:
     def __init_atlas(self, cvc):
         pass
 
-    def __click_map_grid(self, cvc, abtn:Button, shift=False, ctrl=False):
+    def __click_map_grid(self, cvc, abtn:Button, event):
         if self.__curr_asset == None or self.__curr_asset.rsc == None: return
-        
-        overdraw = shift and not ctrl
-        block = ctrl and not shift
-        event = ctrl and shift
+
+        shift = True if event.state == 9 or event.state == 13 else False
+        ctrl = True if event.state == 12 or event.state == 13 else False
+
+        print(event)
 
         x, y = abtn.pos
         map = self.__map_man.curr_map()
-        block = map.get_block(x, y)
-        block.overdraw = not block.overdraw
-        block.block = not block.block
 
-        if event:
-            collide = BooleanVar(cvc, value=False)
+        block = map.get_block(x, y)
+        if block == None:
+            block = Block()
+            block.pos = (x, y)
+        abtn.data = block
+    
+        if (shift and not ctrl):#Toggle blockings
+            block.block = not block.block
+        elif (not shift and ctrl):#Set overdraw
+            if block.overimage == self.__curr_asset.rsc:
+                block.overimage = None
+                abtn.configure(image=block.image)
+            else:
+                block.overimage = self.__curr_asset.rsc
+                abtn.configure(image=block.overimage)
+            
+        elif (shift and ctrl):#Set/edit event
+            block_event = block.event
+            if block_event == None:
+                block_event = Event()
+
+            collide = BooleanVar(cvc, value=block_event.collide)
             transport = StringVar(cvc, value='')
             options = map.list_neightbors()
             if len(options) > 0:
                 transport.set(options[0])
+            script = StringVar(cvc, value='')
+            script_args = StringVar(cvc, value='')
+            script_options = ['']
+            if len(script_options) > 0:
+                script.set(script_options[0])
 
-            input = DynamicDiolog(cvc, 'Event Select', [
+            input = DynamicDiolog(cvc, 'Event Select', ['OK', 'Remove', 'Cancel'], [
                 ('On Contact', collide),
                 ('Transport', options, transport),
-                ('Script', options, transport)
-            ])        
+                ('Script', script_options, script),
+                ('Script Args', script_args)
+            ])       
+            res = input.show()
+            if res == 'OK':
+                block_event.collide = collide.get()
+                block_event.transport = transport.get()
+                block_event.script = script.get()
+                block_event.script_args = script_args.get()
+                block.event = block_event
+            elif res == 'Remove':
+                block.event = None
 
-        bg = 'white'
+        else:#Normal place
+            block.image = self.__curr_asset.rsc
+            abtn.configure(image=block.image)
 
-        if overdraw and not block: bg = 'RoyalBlue1'
-        elif not overdraw and block: bg = 'firebrick1'
-        elif overdraw and block: bg = 'DarkOrchid1'
+        bg = 'gray'
+        edge = 'flat'
 
-        bc = 'dodger blue' if event else 'white'
-        bc = 'red'
-        fg = 'green'
-        if self.__curr_asset.atype == AType.sprite:
-            abtn.configure(image=self.__curr_asset.rsc, background=bg, fg=fg,
-                           highlightcolor=bc, relief='ridge')
+        if block.overimage != None: edge = 'ridge'
         
-        abtn.block = block
-        abtn.overdraw = overdraw
-        abtn.event = event
-        self.__curr_block = abtn
-        self.update_toolbox()
+        if block.block and block.event == None: bg = 'firebrick1'
+        elif not block.block and block.event != None: bg = 'dodger blue'
+        elif block.block and block.event != None: bg = 'DarkOrchid1'
 
+        abtn.configure(bg=bg, relief=edge, highlightbackground='red', highlightcolor='green')
+
+        map.place_block(x, y, block)
+
+        self.update_toolbox()
 
     def __click_asset_grid(self, abtn:Button):
         self.__curr_asset = abtn.asset
@@ -436,11 +479,13 @@ class Window:
         name_var = StringVar(cvc, value='')
 
         prompt = DynamicDiolog(cvc, 'New Map', 
+                               ['OK', 'Cancel'],
                                [('Map Name:', name_var),
                                 ('Width: ', w_var),
                                 ('Height: ', h_var)]
                                )
-        prompt.show()
+        if prompt.show() == 'Cancel':
+            return
 
         w = w_var.get()
         h = h_var.get()
@@ -508,13 +553,15 @@ class Window:
                 cell = Button(
                     frame, image=frame.blank,
                     background='gray',
-                    highlightthickness=1, relief='flat', border=1, bd=1
+                    relief='flat',
+                    highlightthickness=1, border=1, bd=1
                     )
                 cell.pos = (x, y)
                 cell.block = False
                 cell.event = False
                 cell.overdraw = False
-                cell.configure(command=partial(self.__click_map_grid, frame, cell))
+                #cell.configure(command=partial(self.__click_map_grid, frame, cell))
+                cell.bind('<Button-1>', partial(self.__click_map_grid, frame, cell))
                 cell.grid(row=y, column=x, padx=0, pady=0)
 
         return frame
@@ -533,7 +580,6 @@ class Window:
         self.__toolbox_txt['POS'].configure(text=f'POS: ({x}, {y})')
         self.__toolbox_txt['BLOCK'].configure(text=f'BLOCK: {block.block}')
         self.__toolbox_txt['EVENT'].configure(text=f'EVENT: {block.event}')
-
 
     def __init_map_toolbox(self, cvc):
         frame = Frame(cvc)
@@ -556,7 +602,6 @@ class Window:
         event.grid(column=2, row=1)
 
         return frame
-
 
     def __init_map(self, cvc):
 
@@ -581,15 +626,23 @@ class Window:
         frame.pack(fill='both', expand=True)
         self.__adjust_win()
         
-    def __clear_configs(self):
+    def __clear_data(self):
         self.__world = None
         self.__rsc_man = None
         self.__map_man = None
         self.__file_man = None
 
+        self.__asset_nb = None
+        self.__asset_btns = None
+        self.__asset_slct = {}
+        self.__asset_pane = None
+        self.__curr_asset = None
+
+        __colls = {}
+
     def __create_world(self):
 
-        self.__clear_configs()
+        self.__clear_data()
 
         name = simpledialog.askstring('Create New World', 'World Name')
         
@@ -613,7 +666,7 @@ class Window:
         
     def __load_world(self, path:str=None):
 
-        self.__clear_configs()
+        self.__clear_data()
 
         if path == None:
             path = dirname(dirname(__file__))
@@ -699,7 +752,7 @@ class Window:
         self.__root.title('SWedit '+title)
 
     def __init_configs(self, path:str = None):
-        self.__clear_configs()
+        self.__clear_data()
         self.__rsc_man = RSCManager(self.__root)
         self.__file_man = FileManager(self.__rsc_man)
         self.__world = WorldConfig(path, self.__rsc_man)

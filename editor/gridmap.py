@@ -12,6 +12,19 @@ Direction = Enum(
     ]
 )
 
+class Event:
+    transport   : str
+    collide     : bool
+    script      : str
+    script_args : str
+
+    def __init__(self) -> None:
+        self.transport = None
+        self.collide = True
+        self.script = None
+        self.script_args = None
+    
+
 class Block(ISerializeable):
     
     image       : PhotoImage
@@ -19,7 +32,7 @@ class Block(ISerializeable):
     pos         : tuple[int, int]
     block       : bool
     overdraw    : bool
-    event       : str
+    event       : Event
 
     def __init__(self) -> None:
         self.image = None
@@ -59,12 +72,12 @@ class GridMap(ISerializeable):
 
         for y in range(0, height):
             for x in range(0, width):
-                self.grid[x][y]
+                self.grid[x][y] = None
 
     def list_neightbors(self):
         ret = []
 
-        
+
 
         return ret
 
