@@ -6,6 +6,7 @@ from tkinter import BooleanVar, Button, Canvas, Checkbutton, Entry, Frame, IntVa
 import tkinter
 from tkinter.ttk import Notebook, Treeview
 from os.path import dirname, join
+import types
 from gridmap import Block, Event, GridManager, GridMap
 from icon import Icons, GetIcons
 from world_config import WorldConfig
@@ -44,6 +45,8 @@ class DynamicDiolog(tkinter.Toplevel):
                 else:
                     p[2].set('')
                 input = OptionMenu(self, p[2], p[2].get(), *p[1])
+            elif isinstance(p[1], types.LambdaType):
+                input = Button(self, text='New Zone', command=p[1])
 
             lbl.grid(column=0, row=i)
             input.grid(column=1, row=i)
@@ -82,10 +85,12 @@ class Window:
     __asset_nb  : Notebook = None
     __asset_btns: Frame = None
     __asset_slct: dict = {}
+    __zone_slct : dict = {}
     __asset_pane: Frame = None
     __curr_asset: Asset = None
 
     __colls     : dict = {}
+    __maps      : dict = {}
 
     __width     : int = 1100
     __height    : int = 600
@@ -257,8 +262,42 @@ class Window:
 
         return (group, coll)
 
+    def __init_map_panel(self, cvc):
+        frame = Frame(cvc)
+        zone_select = Frame(frame)
+
+        zone_var = self.__map_man.get_zone_var()
+        if zone_var == None: zone_var = StringVar(cvc, '')
+        options = self.__map_man.list_zones()
+        if len(options) == 0:
+            options.append('default')
+        zone_var.set(options[0])
+        
+        dropdown = OptionMenu(zone_select, zone_var, *options)
+
+        sel_frame = self.__make_select_frame(frame, self.__zone_slct, zone_var.get())
+
+        dropdown.pack(fill='x')
+        zone_select.pack(anchor='nw', side='top', fill='x')
+        sel_frame.pack(anchor='n', side='top', fill='both', expand=1)
+        frame.pack()
+
+        self.__maps[zone_var.get()] = dropdown
+        self.__wrld_dep.append(dropdown)
+
+        return frame
+
     def __init_atlas(self, cvc):
-        pass
+
+        frame = Frame(cvc)
+        
+        map_panel = self.__init_map_panel(frame)
+
+
+        map_panel.grid(column=0, row=0, sticky='w')
+        frame.pack(fill='both', expand=True)
+
+        return frame
 
     def __click_map_grid(self, cvc, abtn:Button, event):
         if self.__curr_asset == None or self.__curr_asset.rsc == None: return
@@ -350,7 +389,7 @@ class Window:
 
         map.place_block(x, y, block)
 
-        self.update_toolbox()
+        self.__update_toolbox()
 
     def __click_asset_grid(self, abtn:Button):
         self.__curr_asset = abtn.asset
@@ -382,11 +421,11 @@ class Window:
             y = int(i/5)
             b.grid(column=x, row=y)
 
-    def __make_select_frame(self, cvc, group:str):
+    def __make_select_frame(self, cvc, var_list:dict, group:str):
 
         frame = Frame(cvc, background='orange',
                       width=self.__asset_w, height=self.__asset_h)
-        self.__asset_slct[group] = frame
+        var_list[group] = frame
         return frame
 
     def __on_asset_coll_change(self, *args):
@@ -395,18 +434,18 @@ class Window:
 
     def __init_tab(self, cvc, group):
         frame = Frame(cvc, background='yellow')
-        dropframe = Frame(frame, background='blue')
+        coll_select = Frame(frame, background='blue')
 
         var = self.__rsc_man.get_coll_var(group)
         options = self.__rsc_man.list_collections(group)
         var.set(options[0])
         var.trace('w', self.__on_asset_coll_change)
-        dropdown = OptionMenu(dropframe, var, *options)
+        dropdown = OptionMenu(coll_select, var, *options)
 
-        sel_frame = self.__make_select_frame(frame, group)
+        sel_frame = self.__make_select_frame(frame, self.__asset_slct, group)
 
         dropdown.pack(fill='x')
-        dropframe.pack(anchor='nw', side='top', fill='x')
+        coll_select.pack(anchor='nw', side='top', fill='x')
         sel_frame.pack(anchor='n', side='top', fill='both', expand=1)
         frame.pack()
 
@@ -480,21 +519,44 @@ class Window:
 
         btnf.grid(column=0, row=0, sticky='w')
         tabs.grid(column=0, row=1)
-        tabf.pack(fill='both', expand=1)
+        tabf.pack(fill='both', expand=True)
 
-    def __new_map(self, cvc):
+    def __add_zone(self, cvc, zone_name:StringVar=None):
+
+        if zone_name == None:
+            zone_name = StringVar(cvc, '')
+
+        dlg = DynamicDiolog(cvc, 'New Zone',
+                            ['OK', 'Cancel'],
+                            [('Zone Name: ', zone_name)]
+                            )
+        res = dlg.show()
+
+        if res == 'Cancel' or zone_name.get() == '':
+            return False
+        
+        self.__map_man.add_zone(zone_name.get())
+
+        return True
+
+    def __new_map(self, cvc, old_map:GridMap=None, src_dir:str=None):
         
         w:int
         h:int
+        zone:str
         name:str
 
         w_var = IntVar(cvc, value=10)
         h_var = IntVar(cvc, value=10)
+        zones = self.__map_man.list_zones()
+        zone_var = StringVar(cvc, value='')
         name_var = StringVar(cvc, value='')
 
         prompt = DynamicDiolog(cvc, 'New Map', 
                                ['OK', 'Cancel'],
-                               [('Map Name:', name_var),
+                               [('New Zone', lambda:self.__add_zone(cvc, zone_var), zone_var),
+                                ('Zone', zones, zone_var),
+                                ('Map Name:', name_var),
                                 ('Width: ', w_var),
                                 ('Height: ', h_var)]
                                )
@@ -503,13 +565,31 @@ class Window:
 
         w = w_var.get()
         h = h_var.get()
+        zone = zone_var.get()
         name = name_var.get()
 
-        if (name == '' or w < 0 or h < 0):
+        if (name == '' or zone == '' or w < 0 or h < 0):
             messagebox.showerror('Invalid Input', 'Map cannot be created')
             return
 
-        self.__map_man.add_map(name ,w, h)
+        self.__map_man.add_map(zone, name ,w, h)
+
+        if old_map != None and src_dir != None:
+            src_dir = src_dir.upper()
+            new_map = self.__map_man.curr_map()
+            if src_dir == 'NORTH':
+                old_map.North = new_map
+                new_map.South = old_map
+            elif src_dir == 'SOUTH':
+                old_map.South = new_map
+                new_map.North = old_map
+            elif src_dir == 'EAST':
+                old_map.East = new_map
+                new_map.West = old_map
+            elif src_dir == 'WEST':
+                old_map.West = new_map
+                new_map.East = old_map
+
         self.__init_map(self.__map)
 
     def __remove_map(self, cvc):
@@ -581,11 +661,12 @@ class Window:
 
     def __update_dir_btn(self, btn:Button, map:GridMap):
         enabled = map != None
-        state = 'normal' if enabled else 'disabled'
+        #state = 'normal' if enabled else 'disabled'
+        state = 'normal'
         img = btn.img_green if enabled else btn.img_gray
         btn.configure(state=state, image=img)
 
-    def update_toolbox(self):
+    def __update_toolbox(self):
 
         curr = self.__curr_block
         if curr == None:
@@ -622,9 +703,22 @@ class Window:
         self.__toolbox_txt['MAP_NAME'].configure(text=f'Map name: {map.name}')
         self.__toolbox_txt['MAP_ID'].configure(text=f'Map name: {map.id}')
 
+    def __change_map(self, map:GridMap):
+        self.__save_world()
+        self.__init_map(self.__map)
+
     def __map_dir_pressed(self, dir:str):
 
-        pass
+        dir = dir.upper()
+        map = self.__map_man.curr_map()
+
+        if dir == 'NORTH': new_map = map.North
+        elif dir == 'SOUTH': new_map = map.South
+        elif dir == 'EAST': new_map = map.East
+        elif dir == 'WEST': new_map = map.West
+        
+        if new_map == None: self.__new_map(self.__map, map, dir)
+        else: self.__change_map(new_map)
 
     def __init_map_toolbox(self, cvc):
 
@@ -755,6 +849,7 @@ class Window:
         self.__asset_nb = None
         self.__asset_btns = None
         self.__asset_slct = {}
+        self.__zone_slct = {}
         self.__asset_pane = None
         self.__curr_asset = None
 
@@ -779,6 +874,7 @@ class Window:
         self.__set_title(name)
         self.__init_configs(world_path)
         self.__rsc_man.import_default_assets()
+        self.__init_atlas(self.__atlas)
         self.__init_assets(self.__assetlib)
         self.__init_map(self.__map)
         self.__update_coll_menu(refresh_all=True)
@@ -806,6 +902,7 @@ class Window:
 
         self.__init_configs(path)
         self.__validate_ctrl_state()
+        self.__init_atlas(self.__atlas)
         self.__init_assets(self.__assetlib)
         self.__init_map(self.__map)
         self.__refresh_select_frame()
@@ -878,14 +975,13 @@ class Window:
         self.__world = WorldConfig(path, self.__rsc_man)
         #self.__file_man.new_world(self.__world)
         self.__world.open(self.__root)
-        self.__map_man = GridManager()
+        self.__map_man = GridManager(self.__root)
 
         if self.__asset_nb != None:
             self.__update_coll_menu()
         self.__validate_ctrl_state()
 
     def __init__(self):
-
         self.__root = Tk()
         self.__util = GetUtil()
         self.__icons = GetIcons()

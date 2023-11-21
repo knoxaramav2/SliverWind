@@ -1,8 +1,8 @@
 import os
 from os.path import dirname, join
 
-def coall(var:str):
-    return var if var != None else ''
+def coall(var, defval=None):
+    return var if var != None else defval
 
 class Util:
 

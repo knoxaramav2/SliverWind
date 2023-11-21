@@ -1,8 +1,9 @@
 from __future__ import annotations
 from enum import Enum
 from random import randint
-from tkinter import PhotoImage
+from tkinter import PhotoImage, StringVar, Tk
 from serial import ISerializeable
+from ed_util import coall
 
 from rsc_manager import Asset
 
@@ -116,20 +117,73 @@ class GridMap(ISerializeable):
 
 class GridManager(ISerializeable):
 
-    __maps      = [GridMap]
-    __current   = GridMap
+    __zone_select   : dict
+    __zones         : dict
+    __current       : GridMap
+    __curr_zone     : str
 
-    def __init__(self):
-        self.__maps = []
+    __root          : Tk
+
+    def __init__(self, root:Tk):
+        self.__zones = {}
+        self.__zone_select = {}
         self.__current = None
+        self.__curr_zone = None
+        self.__root = root
 
     def curr_map(self):
         return self.__current
 
-    def add_map(self, name:str, w:int, h:int):
+    def list_zones(self):
+        return list(self.__zones.keys())
+
+    def list_maps(self, zone:str):
+        zn = self.__get_zone(zone)
+        if zn == None: return []
+        return zn
+
+    def __get_zone(self, zone:str):
+        zone = zone.lower()
+        if zone not in self.__zones: return None
+        return self.__zones[zone]
+
+    def add_zone(self, zone):
+        zone = zone.lower()
+        if self.__get_zone(zone) != None:
+            return
+        self.__zones[zone] = []
+        self.__zone_select[zone] = StringVar(self.__root, '')
+
+    def get_map(self, zone:str, map:str):
+        zn = self.__get_zone(zone)
+        if zn == None: return None
+        mp = [t for t in zn if t.name == map]
+        if len(mp) == 0: return None
+        return mp[0]
+
+    def get_zone_var(self, zone:str=None):
+        
+        zone = coall(zone, self.__curr_zone)
+        if zone == None: return None
+        
+        zone = zone.lower()
+        return self.__zone_select[zone]
+
+    def add_map(self, zone:str, name:str, w:int, h:int):
+        zone = zone.lower()
+        
+        zn = self.__get_zone(zone)
+        if zn == None:
+            self.add_zone(zone)
+        
+        if self.get_map(zone, name) != None:
+            return None
+
         map = GridMap(w, h)
         map.name = name
-        map.id = randint(100000, 999999)
+        map.id = randint(100000, 999999)        
+        
+        self.__zones[zone] = map
         self.__current = map
         return map
 
