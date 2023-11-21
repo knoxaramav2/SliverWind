@@ -1,6 +1,9 @@
 import os
 from os.path import dirname, join
 
+def coall(var:str):
+    return var if var != None else ''
+
 class Util:
 
     base_uri    : str

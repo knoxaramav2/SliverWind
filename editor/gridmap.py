@@ -68,7 +68,7 @@ class GridMap(ISerializeable):
         self.__width = width
         self.__height = height
 
-        self.grid = [[None]*width for i in range(height)]
+        self.grid = [[None]*width for _ in range(height)]
 
         for y in range(0, height):
             for x in range(0, width):

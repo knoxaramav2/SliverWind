@@ -4,7 +4,7 @@ from functools import partial
 import os
 from tkinter import BooleanVar, Button, Canvas, Checkbutton, Entry, Frame, IntVar, Label, Listbox, Menu, OptionMenu, Scrollbar, StringVar, Text, Tk, messagebox, simpledialog, filedialog as fd
 import tkinter
-from tkinter.ttk import Notebook
+from tkinter.ttk import Notebook, Treeview
 from os.path import dirname, join
 from gridmap import Block, Event, GridManager, GridMap
 from icon import Icons, GetIcons
@@ -13,7 +13,7 @@ from editor_settings import EditorSettings
 import rsc_manager
 from rsc_manager import AType, Asset, RSCManager
 from file_manager import FileManager
-from ed_util import Util, GetUtil
+from ed_util import Util, GetUtil, coall
 from PIL import ImageTk
 
 class DynamicDiolog(tkinter.Toplevel):
@@ -263,6 +263,8 @@ class Window:
     def __click_map_grid(self, cvc, abtn:Button, event):
         if self.__curr_asset == None or self.__curr_asset.rsc == None: return
 
+        self.__curr_block = abtn
+
         shift = True if event.state == 9 or event.state == 13 else False
         ctrl = True if event.state == 12 or event.state == 13 else False
 
@@ -323,7 +325,7 @@ class Window:
                 if abtn.event_img == None:
                     bx, by = abtn.winfo_x(), abtn.winfo_y()
                     w = abtn.winfo_width()
-                    evi = Canvas(abtn.master, width=2, height=2, background='red')
+                    evi = Canvas(abtn.master, width=5, height=5, background='gold', bd=0, border=0, highlightthickness=0)
                     evi.place(anchor='ne', x=bx+w, y=by)
                     abtn.event_img = evi
             elif res == 'Remove':
@@ -576,7 +578,13 @@ class Window:
                 cell.grid(row=y, column=x, padx=0, pady=0)
 
         return frame
-    
+
+    def __update_dir_btn(self, btn:Button, map:GridMap):
+        enabled = map != None
+        state = 'normal' if enabled else 'disabled'
+        img = btn.img_green if enabled else btn.img_gray
+        btn.configure(state=state, image=img)
+
     def update_toolbox(self):
 
         curr = self.__curr_block
@@ -588,29 +596,130 @@ class Window:
         map = self.__map_man.curr_map()
         block = map.get_block(x, y)
 
-        self.__toolbox_txt['POS'].configure(text=f'POS: ({x}, {y})')
-        self.__toolbox_txt['BLOCK'].configure(text=f'BLOCK: {block.block}')
-        self.__toolbox_txt['EVENT'].configure(text=f'EVENT: {block.event}')
+        self.__toolbox_txt['POS'].configure(text=f'Pos: ({x}, {y})')
+        self.__toolbox_txt['BLOCKED'].configure(text=f'Blocked: {block.block}')
+        self.__toolbox_txt['OVERDRAW'].configure(text=f'Over Layer: {block.overimage != None}')
+
+        event_tmp:Event = block.event
+        if event_tmp == None:
+            event_tmp = Event()
+            event_tmp.transport = '---'
+            event_tmp.collide = '---'
+            event_tmp.script = '---'
+            event_tmp.script_args = '---'
+
+        self.__toolbox_txt['TRANSPORT'].configure(text=f'Transport: {event_tmp.transport}')
+        self.__toolbox_txt['COLLIDE'].configure(text=f'On Collide: {event_tmp.collide}')
+        self.__toolbox_txt['SCRIPT'].configure(text=f'Script: {event_tmp.script}')
+        self.__toolbox_txt['SCRIPT_ARGS'].configure(text=f'Args: {event_tmp.script_args}')
+
+
+        self.__update_dir_btn(self.__toolbox_txt['MAPDIR_UP'], map.North)
+        self.__update_dir_btn(self.__toolbox_txt['MAPDIR_DOWN'], map.South)
+        self.__update_dir_btn(self.__toolbox_txt['MAPDIR_LEFT'], map.West)
+        self.__update_dir_btn(self.__toolbox_txt['MAPDIR_RIGHT'], map.East)
+
+        self.__toolbox_txt['MAP_NAME'].configure(text=f'Map name: {map.name}')
+        self.__toolbox_txt['MAP_ID'].configure(text=f'Map name: {map.id}')
+
+    def __map_dir_pressed(self, dir:str):
+
+        pass
 
     def __init_map_toolbox(self, cvc):
-        frame = Frame(cvc)
-        
+
         self.__toolbox_txt = {}
 
-        coord = Label(frame, text='POS:')
-        blocked = Label(frame, text='BLOCK:')
-        overdraw = Label(frame, text='OVERDRAW:')
-        event = Label(frame, text='EVENT:')
+        frame = Frame(cvc)
+        
+        cell_box = Frame(frame)
+        basic_info = Frame(cell_box)
+        event_info = Frame(cell_box)
+        
+        map_box = Frame(frame)
+        direct = Frame(map_box)
+        map_info = Frame(map_box)
+
+        coord = Label(basic_info, text='Pos: ')
+        blocked = Label(basic_info, text='Blocked: ')
+        overdraw = Label(basic_info, text='Over Layer: ')
 
         self.__toolbox_txt['POS'] = coord
-        self.__toolbox_txt['BLOCK'] = blocked
+        self.__toolbox_txt['BLOCKED'] = blocked
         self.__toolbox_txt['OVERDRAW'] = overdraw
-        self.__toolbox_txt['EVENT'] = event
 
-        coord.grid(column=0, row=0)
-        blocked.grid(column=0, row=1)
-        overdraw.grid(column=1, row=1)
-        event.grid(column=2, row=1)
+        transport = Label(event_info, text='Transport: ')
+        collide = Label(event_info, text='On Collide: ')
+        script = Label(event_info, text='Script: ')
+        args = Label(event_info, text='Args: ')
+
+        self.__toolbox_txt['TRANSPORT'] = transport
+        self.__toolbox_txt['COLLIDE'] = collide
+        self.__toolbox_txt['SCRIPT'] = script
+        self.__toolbox_txt['SCRIPT_ARGS'] = args
+
+        dir_up_img_gray = self.__get_ico('up_gray')
+        dir_down_img_gray = self.__get_ico('down_gray')
+        dir_left_img_gray = self.__get_ico('left_gray')
+        dir_right_img_gray = self.__get_ico('right_gray')
+
+        dir_up_img_green = self.__get_ico('up_green')
+        dir_down_img_green = self.__get_ico('down_gray')
+        dir_left_img_green = self.__get_ico('left_gray')
+        dir_right_img_green = self.__get_ico('right_gray')
+
+        dir_up = Button(direct, image=dir_up_img_gray, command=lambda:self.__map_dir_pressed('UP'))
+        dir_up.img_gray = dir_up_img_gray
+        dir_up.img_green = dir_up_img_green
+        dir_down = Button(direct, image=dir_down_img_gray, command=lambda:self.__map_dir_pressed('DOWN'))
+        dir_down.img_gray = dir_down_img_gray
+        dir_down.img_green = dir_down_img_green
+        dir_left = Button(direct, image=dir_left_img_gray, command=lambda:self.__map_dir_pressed('LEFT'))
+        dir_left.img_gray = dir_left_img_gray
+        dir_left.img_green = dir_left_img_green
+        dir_right = Button(direct, image=dir_right_img_gray, command=lambda:self.__map_dir_pressed('RIGHT'))
+        dir_right.img_gray = dir_right_img_gray
+        dir_right.img_green = dir_right_img_green
+
+        if not dir_up in self.__wrld_dep:
+            self.__wrld_dep.extend([dir_up, dir_down, dir_left, dir_right])
+
+        self.__toolbox_txt['MAPDIR_UP'] = dir_up
+        self.__toolbox_txt['MAPDIR_DOWN'] = dir_down
+        self.__toolbox_txt['MAPDIR_LEFT'] = dir_left
+        self.__toolbox_txt['MAPDIR_RIGHT'] = dir_right
+
+        map_name = Label(map_info, text='Map name: ')
+        map_id = Label(map_info, text='Map id: ')
+
+        self.__toolbox_txt['MAP_NAME'] = map_name
+        self.__toolbox_txt['MAP_ID'] = map_id
+
+        coord.grid(row=0)
+        blocked.grid(row=1)
+        overdraw.grid(row=2)
+
+        transport.grid(column=0, row=0)
+        collide.grid(column=1, row=0)
+        script.grid(column=0, row=1)
+        args.grid(column=1, row=1)
+
+        dir_up.grid(column=1, row=0)
+        dir_left.grid(column=0, row=1)
+        dir_right.grid(column=2, row=1)
+        dir_down.grid(column=1, row=2)
+
+        map_name.grid(row=0)
+        map_id.grid(row=1)
+
+        cell_box.grid(column=0, row=0)
+        map_box.grid(column=1, row=0)
+
+        basic_info.grid(column=0, row=0)
+        event_info.grid(column=0, row=1)
+
+        direct.grid(column=0, row=0)
+        map_info.grid(column=0, row=1)
 
         return frame
 
