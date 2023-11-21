@@ -269,14 +269,18 @@ class Window:
         print(event)
 
         x, y = abtn.pos
+        print ((x, y))
         map = self.__map_man.curr_map()
 
         block = map.get_block(x, y)
+        
         if block == None:
             block = Block()
             block.pos = (x, y)
         abtn.data = block
     
+        print(block.pos)
+
         if (shift and not ctrl):#Toggle blockings
             block.block = not block.block
         elif (not shift and ctrl):#Set overdraw
@@ -316,8 +320,16 @@ class Window:
                 block_event.script = script.get()
                 block_event.script_args = script_args.get()
                 block.event = block_event
+                if abtn.event_img == None:
+                    bx, by = abtn.winfo_x(), abtn.winfo_y()
+                    w = abtn.winfo_width()
+                    evi = Canvas(abtn.master, width=2, height=2, background='red')
+                    evi.place(anchor='ne', x=bx+w, y=by)
+                    abtn.event_img = evi
             elif res == 'Remove':
                 block.event = None
+                abtn.event_img.destroy()
+                abtn.event_img = None
 
         else:#Normal place
             block.image = self.__curr_asset.rsc
@@ -554,12 +566,11 @@ class Window:
                     frame, image=frame.blank,
                     background='gray',
                     relief='flat',
+                    activebackground='gray',
                     highlightthickness=1, border=1, bd=1
                     )
                 cell.pos = (x, y)
-                cell.block = False
-                cell.event = False
-                cell.overdraw = False
+                cell.event_img = None
                 #cell.configure(command=partial(self.__click_map_grid, frame, cell))
                 cell.bind('<Button-1>', partial(self.__click_map_grid, frame, cell))
                 cell.grid(row=y, column=x, padx=0, pady=0)
