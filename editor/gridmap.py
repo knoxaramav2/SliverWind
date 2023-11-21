@@ -69,10 +69,10 @@ class GridMap(ISerializeable):
         self.__width = width
         self.__height = height
 
-        self.grid = [[None]*width for _ in range(height)]
+        self.grid = [[None]*height for _ in range(width)]
 
-        for y in range(0, height):
-            for x in range(0, width):
+        for x in range(0, len(self.grid)):
+            for y in range(0, len(self.grid[x])):
                 self.grid[x][y] = None
 
     def list_neightbors(self):
@@ -117,19 +117,17 @@ class GridMap(ISerializeable):
 
 class GridManager(ISerializeable):
 
-    __zone_select   : dict
     __zones         : dict
     __current       : GridMap
-    __curr_zone     : str
-
     __root          : Tk
 
     def __init__(self, root:Tk):
         self.__zones = {}
-        self.__zone_select = {}
         self.__current = None
-        self.__curr_zone = None
         self.__root = root
+
+    def set_curr_map(self, map:GridMap):
+        self.__current = map
 
     def curr_map(self):
         return self.__current
@@ -138,6 +136,7 @@ class GridManager(ISerializeable):
         return list(self.__zones.keys())
 
     def list_maps(self, zone:str):
+        if zone == None: return []
         zn = self.__get_zone(zone)
         if zn == None: return []
         return zn
@@ -152,7 +151,6 @@ class GridManager(ISerializeable):
         if self.__get_zone(zone) != None:
             return
         self.__zones[zone] = []
-        self.__zone_select[zone] = StringVar(self.__root, '')
 
     def get_map(self, zone:str, map:str):
         zn = self.__get_zone(zone)
@@ -160,14 +158,6 @@ class GridManager(ISerializeable):
         mp = [t for t in zn if t.name == map]
         if len(mp) == 0: return None
         return mp[0]
-
-    def get_zone_var(self, zone:str=None):
-        
-        zone = coall(zone, self.__curr_zone)
-        if zone == None: return None
-        
-        zone = zone.lower()
-        return self.__zone_select[zone]
 
     def add_map(self, zone:str, name:str, w:int, h:int):
         zone = zone.lower()
@@ -183,7 +173,7 @@ class GridManager(ISerializeable):
         map.name = name
         map.id = randint(100000, 999999)        
         
-        self.__zones[zone] = map
+        self.__zones[zone].append(map)
         self.__current = map
         return map
 

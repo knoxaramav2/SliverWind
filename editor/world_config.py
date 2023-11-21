@@ -87,7 +87,7 @@ class WorldConfig:
         self.__name = os.path.basename(path)
 
         tsplit = self.__name.split('.')
-        if len(tsplit) == 1 or tsplit[len(tsplit)-1] != '.swc':
+        if len(tsplit) == 1 or tsplit[len(tsplit)-1] != 'swc':
             self.__name += '.swc'
 
         self.create()

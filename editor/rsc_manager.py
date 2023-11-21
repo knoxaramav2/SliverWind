@@ -134,10 +134,11 @@ class RSCManager:
 
         return [t.name for t in grp.collections]
 
-    def get_assets(self, group:str, col:str):
+    def get_assets(self, group:str, col:str) -> list[Asset]:
 
         collect = self.__collection(group, col)
-
+        if collect == None:
+            return []
         return collect.assets
 
     def type_extensions(self, atype:AType):
