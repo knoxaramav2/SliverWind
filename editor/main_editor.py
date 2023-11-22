@@ -199,7 +199,6 @@ class Window:
 
         if refresh_all:
             to_refresh = self.__rsc_man.list_groups(AType.sprite)
-            pass
         else:
             to_refresh.append(self.__get_asset_select()[0])
 
@@ -264,20 +263,28 @@ class Window:
 
         return (group, coll)
 
-    def __refresh_zone_menu(self):        
+    def __refresh_zone_menu(self, *args):        
         zones = self.__map_man.list_zones()
-        var = self.__curr_zone
-        old_val = var.get()
-        var.set('')
+        if len(zones) == 0:
+            zones.append('default')
+
+        print(f'<< RZM {self.__curr_zone.get()}')
+        old_val = self.__curr_zone.get()
+        self.__curr_zone.set('default')
+        print(f'>> RZM {self.__curr_zone.get()}')
 
         self.__zones['menu'].delete(0, 'end')
         for z in zones:
-            self.__zones['menu'].add_command(label=z, command=tkinter._setit(var, z))
-        
-        if old_val in zones:
-            var.set(old_val)
+            self.__zones['menu'].add_command(label=z, command=tkinter._setit(self.__curr_zone, z))
 
-    def __refresh_map_panel(self):
+        if old_val in zones:
+            self.__curr_zone.set(old_val)
+            print(f'>>> RZM {self.__curr_zone.get()}')
+        else:
+            self.__curr_zone.set(zones[-1])
+            print(f'>>> RZM {self.__curr_zone.get()}')
+
+    def __refresh_map_panel(self, *args):
         frame = self.__zone_pane
         maps = self.__map_man.list_maps(self.__curr_zone.get())
 
@@ -288,24 +295,24 @@ class Window:
             b.configure(command=partial(self.__change_map, map))
             b.pack(expand=True, fill='x', pady=3)
 
-        self.__refresh_zone_menu()
-
     def __init_map_panel(self, cvc):
         frame = Frame(cvc)
         zone_select = Frame(frame)
 
-        add_zone = Button(frame, text='Add Zone', command=lambda: self.__add_zone(frame))
+        add_zone = Button(frame, text='Add Zone', command=partial(self.__add_zone, frame))
 
         if self.__curr_zone == None: 
-            self.__curr_zone = StringVar(self.__atlas, '')
+            self.__curr_zone = StringVar(self.__atlas, 'default')
 
         zone_var = self.__curr_zone
         options = self.__map_man.list_zones()
         if len(options) == 0:
             options.append('default')
         zone_var.set(options[0])
+        print(f'>> IMP ZV {self.__curr_zone.get()}')
         
         dropdown = OptionMenu(zone_select, zone_var, *options)
+        zone_var.trace('w', self.__refresh_map_panel)
 
         self.__zone_pane = Frame(frame, width=self.__atlas_w, background='red')
 
@@ -320,9 +327,8 @@ class Window:
 
         return frame
 
-    def __init_atlas(self, cvc=None):
+    def __init_atlas(self, cvc):
 
-        if cvc == None: cvc = self.__atlas
         self.__clear_frame(cvc)
         frame = Frame(cvc)
         
@@ -331,7 +337,7 @@ class Window:
         map_panel.grid(column=0, row=0, sticky='w')
         frame.pack(fill='both', expand=True)
 
-        self.__refresh_map_panel()
+        #self.__refresh_map_panel()
 
         return frame
 
@@ -368,10 +374,7 @@ class Window:
         shift = True if event.state == 9 or event.state == 13 else False
         ctrl = True if event.state == 12 or event.state == 13 else False
 
-        print(event)
-
         x, y = abtn.pos
-        print ((x, y))
         map = self.__map_man.curr_map()
 
         block = map.get_block(x, y)
@@ -423,7 +426,6 @@ class Window:
             if res == 'OK':
                 block_event.collide = collide.get()
                 block_event.transport = transport.get()
-                #block_event.script = script.get()
                 block_event.script_args = script_args.get()
                 block.event = block_event
                 if abtn.event_img == None:
@@ -586,10 +588,12 @@ class Window:
 
         if res == 'Cancel' or zone.get() == '':
             return False
-        
-        self.__curr_zone.set(zone.get())
-        self.__map_man.add_zone(zone.get())
+        zn_txt = zone.get()
+        self.__curr_zone.set(zn_txt)
+        print(f'>> AZ {self.__curr_zone.get()}')
+        self.__map_man.add_zone(zn_txt)
         self.__refresh_map_panel()
+        self.__refresh_zone_menu()
 
         return True
 
@@ -608,7 +612,7 @@ class Window:
 
         prompt = DynamicDiolog(cvc, 'New Map', 
                                ['OK', 'Cancel'],
-                               [('New Zone', lambda:self.__add_zone(cvc), zone_var),
+                               [('New Zone', zone_var),
                                 ('Zone', zones, zone_var),
                                 ('Map Name:', name_var),
                                 ('Width: ', w_var),
@@ -616,6 +620,10 @@ class Window:
                                )
         if prompt.show() == 'Cancel':
             return
+
+        if zone_var.get() != '':
+            self.__curr_zone.set(zone_var.get())
+            self.__map_man.add_zone(zone_var.get())
 
         w = w_var.get()
         h = h_var.get()
@@ -627,8 +635,7 @@ class Window:
             if name == '': err = 'map name'
             elif zone == '': err = 'zone name'
             elif w < 0 or h < 0: err = 'dimension'
-
-            messagebox.showerror(f'Invalid Input', 'Map cannot be created. Invalid {err}.')
+            messagebox.showerror(f'Invalid Input', f'Map cannot be created. Invalid {err}.')
             return
 
         self.__map_man.add_map(zone, name ,w, h)
@@ -654,7 +661,7 @@ class Window:
         self.__update_toolbox()
 
     def __remove_map(self, cvc):
-        #TODO
+        
         self.__refresh_map_panel()
         self.__update_toolbox()
         self.__init_map(self.__map)
@@ -684,8 +691,8 @@ class Window:
         block = Checkbutton(frame, image=blk_img, variable=self.__md_block)
         block.img = blk_img
 
-        new_map.configure(command=lambda:self.__new_map(cvc))
-        rem_map.configure(command=lambda:self.__remove_map(cvc))
+        new_map.configure(command=partial(self.__new_map, cvc))
+        rem_map.configure(command=partial(self.__remove_map, cvc))
 
         rem_map.pack(anchor='e', side='right', padx=5)
         new_map.pack(anchor='e', side='right', padx=5)
@@ -778,6 +785,7 @@ class Window:
 
         self.__toolbox_txt['MAP_NAME'].configure(text=f'Map name: {map.name}')
         self.__toolbox_txt['MAP_ID'].configure(text=f'Map id: {map.id}')
+        self.__toolbox_txt['ZONE_NAME'].configure(text=f'Zone : {map._zone}')
 
     def __change_map(self, map:GridMap):
         
@@ -869,9 +877,11 @@ class Window:
 
         map_name = Label(map_info, text='Map name: ')
         map_id = Label(map_info, text='Map id: ')
+        zone_name = Label(map_info, text='Zone Name: ')
 
         self.__toolbox_txt['MAP_NAME'] = map_name
         self.__toolbox_txt['MAP_ID'] = map_id
+        self.__toolbox_txt['ZONE_NAME'] = zone_name
 
         coord.grid(row=0)
         blocked.grid(row=1)
@@ -885,10 +895,11 @@ class Window:
         dir_up.grid(column=1, row=0)
         dir_left.grid(column=0, row=1)
         dir_right.grid(column=2, row=1)
-        dir_down.grid(column=1, row=2)
+        dir_down.grid(row=2)
 
         map_name.grid(row=0)
         map_id.grid(row=1)
+        zone_name.grid(column=1, row=2)
 
         cell_box.grid(column=0, row=0)
         map_box.grid(column=1, row=0)
@@ -907,6 +918,9 @@ class Window:
             return
         
         self.__clear_frame(cvc)
+
+        x_spacer = Label(cvc, width=100).place(anchor='nw')
+        y_spacer = Label(cvc, height=50).place(anchor='nw')
 
         frame = Frame(cvc, width=self.__grid_w, height=self.__grid_h, background='black', name='map_tools')
 
@@ -956,7 +970,7 @@ class Window:
         self.__util.set_project_name(name)
         self.__set_title(name)
         self.__init_configs(world_path, True)
-        self.__init_atlas()
+        self.__init_atlas(self.__atlas)
         self.__init_assets(self.__assetlib)
         self.__init_map(self.__map)
         self.__update_coll_menu(refresh_all=True)
@@ -1004,6 +1018,9 @@ class Window:
         self.__settings.save()
         self.__world.save()
 
+    def __dbg_cmd(self):
+        self.__curr_zone.set('TEST')
+
     def __init_menu(self,cvc):
 
         lpath = self.__settings.last_opened
@@ -1016,12 +1033,13 @@ class Window:
         helpmenu = Menu(menubar, tearoff=0)
         aboutmenu = Menu(menubar, tearoff=0)
         tilemenu = Menu(menubar, tearoff=0)
+        dbgmenu = Menu(menubar, tearoff=0)
         show_blocking = BooleanVar(menubar, value=False)
         show_script = BooleanVar(menubar, value=False)
         
         filemenu.add_command(label='New World', command=self.__create_world)
         filemenu.add_command(label='Open', command=self.__load_world)
-        filemenu.add_command(label='Recent'+lname, command=lambda:self.__load_world(lpath))
+        filemenu.add_command(label='Recent'+lname, command=partial(self.__load_world, lpath))
         filemenu.add_separator()
         filemenu.add_command(label='Save', command=self.__save_world)
         filemenu.add_separator()
@@ -1041,6 +1059,9 @@ class Window:
         tilemenu.add_checkbutton(label='Script', onvalue=1, offvalue=0, 
                                 variable=show_script, selectcolor='blue')
         menubar.add_cascade(label='Tiles', menu=tilemenu)
+
+        dbgmenu.add_command(label='DBG CMD', command=self.__dbg_cmd)
+        menubar.add_cascade(label='Debug', menu=dbgmenu)
         
         self.__root.config(menu=menubar)
 

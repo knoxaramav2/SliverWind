@@ -95,6 +95,8 @@ class GridMap(ISerializeable):
     __width     : int
     __height    : int
 
+    _zone       : str = None
+
     def __init__(self, width:int, height:int):
         
         self.__width = width
@@ -227,6 +229,7 @@ class GridManager(ISerializeable):
         map = GridMap(w, h)
         map.name = name
         map.id = randint(100000, 999999)        
+        map._zone = zone
         
         self.__zones[zone].append(map)
         self.__current = map
@@ -289,11 +292,9 @@ class GridManager(ISerializeable):
                 cntr[1] += 1
             elif c == ')':
                 cntr[1] -= 1
-                print(cntr)
                 if cntr[0] == 2 and cntr[1] == 0:#MAP ID
                     map_name, map_id = buff.split(',')
                 elif cntr[0] == 3 and cntr[1] == 0 and cntr[2] == 1:#Add cell
-                    print(f'PLACE {col},{row}')
                     b = Block()
                     b.image = rsc.get_asset_by_id(img_id)
                     b.overimage = rsc.get_asset_by_id(ovrimg_id)
