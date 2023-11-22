@@ -2,6 +2,7 @@
 
 from functools import partial
 import os
+import sys
 from tkinter import BooleanVar, Button, Canvas, Checkbutton, Entry, Frame, IntVar, Label, Listbox, Menu, OptionMenu, Scrollbar, StringVar, Text, Tk, Widget, messagebox, simpledialog, filedialog as fd
 import tkinter
 from tkinter.ttk import Notebook, Treeview
@@ -16,6 +17,9 @@ from rsc_manager import AType, Asset, RSCManager
 from ed_util import Util, GetUtil, coall
 from PIL import ImageTk
 
+#####################################
+#####SUPPORT CLASSES
+#####################################
 class DynamicDiolog(tkinter.Toplevel):
 
     def __init__(self, parent, title:str,options:list, prompts:[tuple[str,StringVar|BooleanVar|IntVar|list[str], StringVar|None]]):
@@ -23,6 +27,7 @@ class DynamicDiolog(tkinter.Toplevel):
         tkinter.Toplevel.__init__(self, parent)
         self.title(title)
         self.resizable(False, False)
+        self.grab_set()
 
         self.result = StringVar(self, 'Unknown')
 
@@ -72,6 +77,22 @@ class DynamicDiolog(tkinter.Toplevel):
         self.wait_window()
         return self.result.get()
 
+class Config:
+    debug       : bool = False
+
+    def __parse(self, args:[str]):
+
+        for arg in args:
+            match arg:
+                case '-d': self.debug = True
+
+    def __init__(self) -> None:
+        self.__parse(sys.argv)
+
+
+#####################################
+#####MAIN CLASS
+#####################################
 
 class Window:
 
@@ -84,7 +105,6 @@ class Window:
     __asset_btns: Frame = None
     __asset_slct: dict = {}
     __zone_pane : Frame = None
-    __asset_pane: Frame = None
     __curr_asset: Asset = None
     __curr_zone : StringVar = None
 
@@ -107,6 +127,7 @@ class Window:
     __map_man   : GridManager = None
     __settings  : EditorSettings = None
     __world     : WorldConfig = None
+    __cfg       : Config = None
 
     __md_above  : BooleanVar = None
     __md_block  : BooleanVar = None
@@ -118,6 +139,10 @@ class Window:
     #Controls disabled when world not loaded
     __wrld_dep  : list = []
 
+
+#####################################
+#####HACKY SUPPORT STUFF
+#####################################
     def __adjust_win(self):
         self.__root.update()
         total_w = (self.__atlas.winfo_width() +
@@ -129,7 +154,6 @@ class Window:
                    )
         self.__root.geometry(f'{total_w}x{total_h}')
     
-
     def __spacer(self, cvc, col, row):
         sp = Label(cvc, bd=1, borderwidth=1,
               fg='white', background='grey',
@@ -142,9 +166,13 @@ class Window:
             for x in range(0, self.__grid_w):
                 self.__spacer(cvc, x, y)
 
+#####################################
+#####RESOURCE MANAGEMENT/HELPERS
+#####################################
+
     def __get_ico(self, imgname:str, sz=16):
         return ImageTk.PhotoImage(self.__icons.icons[imgname][0].resize((sz,sz), resample=2))
-
+#TODO: Add identifiers to controls for validation support
     def __validate_ctrl_state(self):
         state = 'normal' if self.__world != None else 'disabled'
         for c in self.__wrld_dep:
@@ -157,6 +185,19 @@ class Window:
         for c in f.winfo_children():
             c.destroy()
 
+    def __clear_data(self):
+        self.__world = None
+        self.__rsc_man = None
+        self.__map_man = None
+
+        self.__asset_nb = None
+        self.__asset_btns = None
+        self.__asset_slct = {}
+        self.__curr_asset = None
+
+#####################################
+#####ASSET MANAGEMENT
+#####################################
     def __import_asset(self):
         
         group, coll = self.__get_asset_select()
@@ -192,7 +233,7 @@ class Window:
 
         self.__world.save()
         self.__update_coll_menu()
-
+    
     def __update_coll_menu(self, refresh_all=False):
 
         to_refresh = []
@@ -262,28 +303,27 @@ class Window:
         coll = self.__rsc_man.get_coll_var(group)
 
         return (group, coll)
+    
+    def __click_asset_grid(self, abtn:Button):
+        self.__curr_asset = abtn.asset
 
-    def __refresh_zone_menu(self, *args):        
-        zones = self.__map_man.list_zones()
-        if len(zones) == 0:
-            zones.append('default')
+#####################################
+#####ATLAST MANAGEMENT
+#####################################
+    def __init_atlas(self, cvc):
 
-        print(f'<< RZM {self.__curr_zone.get()}')
-        old_val = self.__curr_zone.get()
-        self.__curr_zone.set('default')
-        print(f'>> RZM {self.__curr_zone.get()}')
+        self.__clear_frame(cvc)
+        frame = Frame(cvc)
+        
+        map_panel = self.__init_map_panel(frame)
 
-        self.__zones['menu'].delete(0, 'end')
-        for z in zones:
-            self.__zones['menu'].add_command(label=z, command=tkinter._setit(self.__curr_zone, z))
+        map_panel.grid(column=0, row=0, sticky='w')
+        frame.pack(fill='both', expand=True)
 
-        if old_val in zones:
-            self.__curr_zone.set(old_val)
-            print(f'>>> RZM {self.__curr_zone.get()}')
-        else:
-            self.__curr_zone.set(zones[-1])
-            print(f'>>> RZM {self.__curr_zone.get()}')
+        #self.__refresh_map_panel()
 
+        return frame
+    
     def __refresh_map_panel(self, *args):
         frame = self.__zone_pane
         maps = self.__map_man.list_maps(self.__curr_zone.get())
@@ -326,128 +366,27 @@ class Window:
         #self.__wrld_dep.append(dropdown)
 
         return frame
-
-    def __init_atlas(self, cvc):
-
-        self.__clear_frame(cvc)
-        frame = Frame(cvc)
-        
-        map_panel = self.__init_map_panel(frame)
-
-        map_panel.grid(column=0, row=0, sticky='w')
-        frame.pack(fill='both', expand=True)
-
-        #self.__refresh_map_panel()
-
-        return frame
-
-    def __refresh_cell(self, block:Block, cell:Button):
-
-        if block == None: return
-
-        bg = 'gray'
-        edge = 'flat'
-        img = None if block.image == None else block.image.rsc
-
-        if block.overimage != None: edge = 'ridge'
-        
-        if block.block and block.event == None: bg = 'firebrick1'
-        elif not block.block and block.event != None: bg = 'dodger blue'
-        elif block.block and block.event != None: bg = 'DarkOrchid1'
-
-        cell.configure(image=img, bg=bg, relief=edge)
-
-    def __refresh_grid(self):
-        print(f'refresh {len(self.__grid)}x{len(self.__grid[0])}')
-        map = self.__map_man.curr_map()
-        for y in range(len(self.__grid)):
-            for x in range(len(self.__grid[y])):
-                cell = self.__grid[y][x]
-                block = map.get_block(x, y)
-                self.__refresh_cell(block, cell)
-
-    def __click_map_grid(self, cvc, abtn:Button, event):
-        if self.__curr_asset == None or self.__curr_asset.rsc == None: return
-
-        self.__curr_block = abtn
-
-        shift = True if event.state == 9 or event.state == 13 else False
-        ctrl = True if event.state == 12 or event.state == 13 else False
-
-        x, y = abtn.pos
-        map = self.__map_man.curr_map()
-
-        block = map.get_block(x, y)
-        
-        if block == None:
-            block = Block()
-            block.pos = (x, y)
-            block.image = None
-            block.overimage = None
-        abtn.data = block
     
-        print(block.pos)
+    def __refresh_zone_menu(self, *args):        
+        zones = self.__map_man.list_zones()
+        if len(zones) == 0:
+            zones.append('default')
 
-        if (shift and not ctrl):#Toggle blockings
-            block.block = not block.block
-        elif (not shift and ctrl):#Set overdraw
-            if block.overimage == self.__curr_asset:
-                block.overimage = None
-                img = None if block.image == None else block.image.rsc
-                abtn.configure(image=img)
-            else:
-                block.overimage = self.__curr_asset
-                img = None if block.overimage == None else block.overimage.rsc
-                abtn.configure(image=img)
-            
-        elif (shift and ctrl):#Set/edit event
-            block_event = block.event
-            if block_event == None:
-                block_event = Event()
+        print(f'<< RZM {self.__curr_zone.get()}')
+        old_val = self.__curr_zone.get()
+        self.__curr_zone.set('default')
+        print(f'>> RZM {self.__curr_zone.get()}')
 
-            collide = BooleanVar(cvc, value=block_event.collide)
-            transport = StringVar(cvc, value='')
-            options = map.list_neightbors()
-            if len(options) > 0:
-                transport.set(options[0])
-            script = StringVar(cvc, value='')
-            script_args = StringVar(cvc, value='')
-            script_options = ['']
-            if len(script_options) > 0:
-                script.set(script_options[0])
+        self.__zones['menu'].delete(0, 'end')
+        for z in zones:
+            self.__zones['menu'].add_command(label=z, command=tkinter._setit(self.__curr_zone, z))
 
-            input = DynamicDiolog(cvc, 'Event Select', ['OK', 'Remove', 'Cancel'], [
-                ('On Contact', collide),
-                ('Transport', options, transport),
-                ('Script', script_options, script),
-                ('Script Args', script_args)
-            ])       
-            res = input.show()
-            if res == 'OK':
-                block_event.collide = collide.get()
-                block_event.transport = transport.get()
-                block_event.script_args = script_args.get()
-                block.event = block_event
-                if abtn.event_img == None:
-                    bx, by = abtn.winfo_x(), abtn.winfo_y()
-                    w = abtn.winfo_width()
-                    evi = Canvas(abtn.master, width=5, height=5, background='gold', bd=0, border=0, highlightthickness=0)
-                    evi.place(anchor='ne', x=bx+w, y=by)
-                    abtn.event_img = evi
-            elif res == 'Remove':
-                block.event = None
-                abtn.event_img.destroy()
-                abtn.event_img = None
-
-        else:#Normal place
-            block.image = self.__curr_asset
-
-        self.__refresh_cell(block, abtn)
-        map.place_block(x, y, block)
-        self.__update_toolbox()
-
-    def __click_asset_grid(self, abtn:Button):
-        self.__curr_asset = abtn.asset
+        if old_val in zones:
+            self.__curr_zone.set(old_val)
+            print(f'>>> RZM {self.__curr_zone.get()}')
+        else:
+            self.__curr_zone.set(zones[-1])
+            print(f'>>> RZM {self.__curr_zone.get()}')
 
     def __refresh_asset_select_frames(self):
 
@@ -567,7 +506,7 @@ class Window:
     def __init_assets(self, cvc):
 
         self.__clear_frame(cvc)
-        tabf = Frame(cvc)
+        tabf = Frame(cvc, height=self.__asset_h)
         
         btnf = self.__init_asset_buttons(tabf)
         tabs = self.__init_tabs(tabf)
@@ -665,6 +604,114 @@ class Window:
         self.__refresh_map_panel()
         self.__update_toolbox()
         self.__init_map(self.__map)
+
+#####################################
+#####MAP MANAGEMENT
+#####################################
+    def __refresh_cell(self, block:Block, cell:Button):
+
+        if block == None: return
+
+        bg = 'gray'
+        edge = 'flat'
+        img = None if block.image == None else block.image.rsc
+
+        if block.overimage != None: edge = 'ridge'
+        
+        if block.block and block.event == None: bg = 'firebrick1'
+        elif not block.block and block.event != None: bg = 'dodger blue'
+        elif block.block and block.event != None: bg = 'DarkOrchid1'
+
+        cell.configure(image=img, bg=bg, relief=edge)
+
+    def __refresh_grid(self):
+        print(f'refresh {len(self.__grid)}x{len(self.__grid[0])}')
+        map = self.__map_man.curr_map()
+        for y in range(len(self.__grid)):
+            for x in range(len(self.__grid[y])):
+                cell = self.__grid[y][x]
+                block = map.get_block(x, y)
+                self.__refresh_cell(block, cell)
+
+    def __click_map_grid(self, cvc, abtn:Button, event):
+        if self.__curr_asset == None or self.__curr_asset.rsc == None: return
+
+        self.__curr_block = abtn
+
+        shift = True if event.state == 9 or event.state == 13 else False
+        ctrl = True if event.state == 12 or event.state == 13 else False
+
+        x, y = abtn.pos
+        map = self.__map_man.curr_map()
+
+        block = map.get_block(x, y)
+        
+        if block == None:
+            block = Block()
+            block.pos = (x, y)
+            block.image = None
+            block.overimage = None
+        abtn.data = block
+    
+        print(block.pos)
+
+        if (shift and not ctrl):#Toggle blockings
+            block.block = not block.block
+        elif (not shift and ctrl):#Set overdraw
+            if block.overimage == self.__curr_asset:
+                block.overimage = None
+                img = None if block.image == None else block.image.rsc
+                abtn.configure(image=img)
+            else:
+                block.overimage = self.__curr_asset
+                img = None if block.overimage == None else block.overimage.rsc
+                abtn.configure(image=img)
+            
+        elif (shift and ctrl):#Set/edit event
+            block_event = block.event
+            if block_event == None:
+                block_event = Event()
+
+            collide = BooleanVar(cvc, value=block_event.collide)
+            transport = StringVar(cvc, value='')
+            options = map.list_neightbors()
+            if len(options) > 0:
+                transport.set(options[0])
+            script = StringVar(cvc, value='')
+            script_args = StringVar(cvc, value='')
+            script_options = ['']
+            if len(script_options) > 0:
+                script.set(script_options[0])
+
+            input = DynamicDiolog(cvc, 'Event Select', ['OK', 'Remove', 'Cancel'], [
+                ('On Contact', collide),
+                ('Transport', options, transport),
+                ('Script', script_options, script),
+                ('Script Args', script_args)
+            ])       
+            res = input.show()
+            if res == 'OK':
+                block_event.collide = collide.get()
+                block_event.transport = transport.get()
+                block_event.script_args = script_args.get()
+                block.event = block_event
+                if abtn.event_img == None:
+                    bx, by = abtn.winfo_x(), abtn.winfo_y()
+                    w = abtn.winfo_width()
+                    evi = Canvas(abtn.master, width=5, height=5, background='gold', bd=0, border=0, highlightthickness=0)
+                    evi.place(anchor='ne', x=bx+w, y=by)
+                    abtn.event_img = evi
+            elif res == 'Remove':
+                block.event = None
+                abtn.event_img.destroy()
+                abtn.event_img = None
+
+        else:#Normal place
+            block.image = self.__curr_asset
+
+        self.__refresh_cell(block, abtn)
+        map.place_block(x, y, block)
+        self.__update_toolbox()
 
     def __init_map_toolbar(self, cvc):
 
@@ -895,11 +942,11 @@ class Window:
         dir_up.grid(column=1, row=0)
         dir_left.grid(column=0, row=1)
         dir_right.grid(column=2, row=1)
-        dir_down.grid(row=2)
+        dir_down.grid(column=1, row=2)
 
         map_name.grid(row=0)
         map_id.grid(row=1)
-        zone_name.grid(column=1, row=2)
+        zone_name.grid(row=2)
 
         cell_box.grid(column=0, row=0)
         map_box.grid(column=1, row=0)
@@ -936,21 +983,10 @@ class Window:
 
         frame.pack(fill='both', expand=True)
         self.__adjust_win()
-        
-    def __clear_data(self):
-        self.__world = None
-        self.__rsc_man = None
-        self.__map_man = None
-        self.__file_man = None
-
-        self.__asset_nb = None
-        self.__asset_btns = None
-        self.__asset_slct = {}
-        self.__zone_slct = {}
-        self.__asset_pane = None
-        self.__curr_asset = None
-
-        __colls = {}
+    
+#####################################
+#####TOP LEVEL MANAGEMENT
+#####################################
 
     def __create_world(self):
 
@@ -1060,8 +1096,9 @@ class Window:
                                 variable=show_script, selectcolor='blue')
         menubar.add_cascade(label='Tiles', menu=tilemenu)
 
-        dbgmenu.add_command(label='DBG CMD', command=self.__dbg_cmd)
-        menubar.add_cascade(label='Debug', menu=dbgmenu)
+        if self.__cfg.debug:
+            dbgmenu.add_command(label='DBG CMD', command=self.__dbg_cmd)
+            menubar.add_cascade(label='Debug', menu=dbgmenu)
         
         self.__root.config(menu=menubar)
 
@@ -1085,6 +1122,9 @@ class Window:
         self.__world = WorldConfig(path, self.__rsc_man, self.__map_man)
 
     def __init__(self):
+
+        self.__cfg = Config()
+
         self.__root = Tk()
         self.__util = GetUtil()
         self.__icons = GetIcons()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 from random import randint
-from tkinter import PhotoImage, StringVar, Tk
+from tkinter import Tk
 from serial import ISerializeable
 from ed_util import coall
 
@@ -30,10 +30,10 @@ class Event(ISerializeable):
 
         script_id = 0 if self.script == None else self.script.id
 
-        ret += f'TRNSP={coall(self.transport, '')};'
+        ret += f'TRNSP={coall(self.transport, "")};'
         ret += f'COLL={self.collide};'
         ret += f'SCRPT={script_id};'
-        ret += f'ARGS={coall(self.script_args, '')};'
+        ret += f'ARGS={coall(self.script_args, "")};'
         
         ret += '}'
 

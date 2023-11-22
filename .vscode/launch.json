@@ -5,14 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "launch.py",
+            "name": "engine",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/editor/editor.py",
-            // "program": "${workspaceFolder}/src/launch.py",
+            "program": "${workspaceFolder}/src/launch.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": []
+        },
+        {
+            "name": "editor",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/editor/editor.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["-d"]
         }
     ]
 }
