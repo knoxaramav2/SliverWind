@@ -13,7 +13,6 @@ from world_config import WorldConfig
 from editor_settings import EditorSettings
 import rsc_manager
 from rsc_manager import AType, Asset, RSCManager
-from file_manager import FileManager
 from ed_util import Util, GetUtil, coall
 from PIL import ImageTk
 
@@ -77,9 +76,9 @@ class DynamicDiolog(tkinter.Toplevel):
 class Window:
 
     __root      : Tk
-    __map       : Canvas
-    __assetlib  : Canvas
-    __atlas     : Canvas
+    __map       : Canvas = None
+    __assetlib  : Canvas = None
+    __atlas     : Canvas = None
 
     __asset_nb  : Notebook = None
     __asset_btns: Frame = None
@@ -105,7 +104,6 @@ class Window:
     __util      : Util
     __icons     : Icons
     __rsc_man   : RSCManager = None
-    __file_man  : FileManager = None
     __map_man   : GridManager = None
     __settings  : EditorSettings = None
     __world     : WorldConfig = None
@@ -127,7 +125,7 @@ class Window:
                    self.__assetlib.winfo_width())
         total_h = max(self.__atlas.winfo_height(),
                    self.__map.winfo_height(),
-                #    self.__assetlib.winfo_height()
+                   self.__assetlib.winfo_height()
                    )
         self.__root.geometry(f'{total_w}x{total_h}')
     
@@ -338,6 +336,7 @@ class Window:
 
         bg = 'gray'
         edge = 'flat'
+        img = None if block.image == None else block.image.rsc
 
         if block.overimage != None: edge = 'ridge'
         
@@ -345,7 +344,7 @@ class Window:
         elif not block.block and block.event != None: bg = 'dodger blue'
         elif block.block and block.event != None: bg = 'DarkOrchid1'
 
-        cell.configure(image=block.image, bg=bg, relief=edge, highlightbackground='red', highlightcolor='green')
+        cell.configure(image=img, bg=bg, relief=edge)
 
     def __refresh_grid(self):
         print(f'refresh {len(self.__grid)}x{len(self.__grid[0])}')
@@ -375,6 +374,8 @@ class Window:
         if block == None:
             block = Block()
             block.pos = (x, y)
+            block.image = None
+            block.overimage = None
         abtn.data = block
     
         print(block.pos)
@@ -382,12 +383,14 @@ class Window:
         if (shift and not ctrl):#Toggle blockings
             block.block = not block.block
         elif (not shift and ctrl):#Set overdraw
-            if block.overimage == self.__curr_asset.rsc:
+            if block.overimage == self.__curr_asset:
                 block.overimage = None
-                abtn.configure(image=block.image)
+                img = None if block.image == None else block.image.rsc
+                abtn.configure(image=img)
             else:
-                block.overimage = self.__curr_asset.rsc
-                abtn.configure(image=block.overimage)
+                block.overimage = self.__curr_asset
+                img = None if block.overimage == None else block.overimage.rsc
+                abtn.configure(image=img)
             
         elif (shift and ctrl):#Set/edit event
             block_event = block.event
@@ -415,7 +418,7 @@ class Window:
             if res == 'OK':
                 block_event.collide = collide.get()
                 block_event.transport = transport.get()
-                block_event.script = script.get()
+                #block_event.script = script.get()
                 block_event.script_args = script_args.get()
                 block.event = block_event
                 if abtn.event_img == None:
@@ -430,7 +433,7 @@ class Window:
                 abtn.event_img = None
 
         else:#Normal place
-            block.image = self.__curr_asset.rsc
+            block.image = self.__curr_asset
 
         self.__refresh_cell(block, abtn)
         map.place_block(x, y, block)
@@ -975,6 +978,9 @@ class Window:
         self.__set_title(os.path.basename(path))
 
         self.__init_configs(path)
+        
+        self.__world.open(self.__root)
+
         self.__init_atlas()
         self.__init_assets(self.__assetlib)
         self.__init_map(self.__map)
@@ -1047,17 +1053,14 @@ class Window:
         self.__clear_data()
         self.__rsc_man = RSCManager(self.__root)
         self.__rsc_man.import_default_assets()
-        self.__file_man = FileManager(self.__rsc_man)
-        self.__world = WorldConfig(path, self.__rsc_man)
-        self.__world.open(self.__root)
         self.__map_man = GridManager(self.__root)
+        self.__world = WorldConfig(path, self.__rsc_man, self.__map_man)
 
     def __init__(self):
         self.__root = Tk()
         self.__util = GetUtil()
         self.__icons = GetIcons()
         self.__settings = EditorSettings()
-        #self.__init_configs()
         r = self.__root
         w = self.__width
         h = self.__height
@@ -1069,6 +1072,10 @@ class Window:
         r.geometry('%sx%s'%(w, h))
         r.resizable(False, False)
         r.configure(background='gray')
+
+        if self.__atlas != None: self.__atlas.destroy()
+        if self.__map != None: self.__map.destroy()
+        if self.__assetlib != None: self.__assetlib.destroy()
 
         self.__atlas = tkinter.Canvas(r, background='red',
                                         width=atlas_w, height=h,
@@ -1086,12 +1093,7 @@ class Window:
         self.__map.grid(sticky='NW', column=1, row=0)
         self.__assetlib.grid(sticky='NE', column=2, row=0)
 
-        #self.__clean_grid(self.__map)
         self.__init_menu(r)
-        #self.__init_atlas(self.__atlas)
-        #self.__init_assets(self.__assetlib)
-        #self.__init_map(self.__map)
-
         self.__adjust_win()
         self.__validate_ctrl_state()
 

@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from ed_util import Util, GetUtil
+from gridmap import GridManager
 from rsc_manager import RSCManager
 
 class WorldConfig:
@@ -17,6 +18,7 @@ class WorldConfig:
 
     __util              : Util
     __rsc               : RSCManager
+    __grid              : GridManager
 
     def open(self, root):
         if not os.path.exists(self.__dir): return
@@ -36,6 +38,7 @@ class WorldConfig:
                 case 'laud': self.last_aud_dir = v
                 case 'lscript': self.last_script_dir = v
                 case 'rsc': self.__rsc.deserialize(v)
+                case 'maps': self.__grid.deserialize(v, self.__rsc)
                 case _: pass
 
     def save(self):
@@ -53,12 +56,14 @@ class WorldConfig:
             f'lsprite:{self.last_sprite_dir}\n',
             f'laud:{self.last_aud_dir}\n',
             f'lscript:{self.last_script_dir}\n',
-            f'rsc:{self.__rsc.serialize()}\n'
+            f'rsc:{self.__rsc.serialize()}\n',
+            f'maps:{self.__grid.serialize(self.__rsc)}\n'
         ]
 
         path = self.__util.join(self.__dir, self.__name)
         f = open(path, 'w')
         f.writelines(content)
+        f.flush()
         f.close()
 
     def create(self):
@@ -79,9 +84,13 @@ class WorldConfig:
     def name(self):
         return self.__name
 
-    def __init__(self, path:str, rman:RSCManager) -> None:
+    def __init__(self, path:str, 
+                 rman:RSCManager,
+                 grdman:GridManager
+                 ) -> None:
         self.__util = GetUtil()
         self.__rsc = rman
+        self.__grid = grdman
 
         self.__dir = os.path.dirname(path)
         self.__name = os.path.basename(path)

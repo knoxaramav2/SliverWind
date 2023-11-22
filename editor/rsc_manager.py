@@ -1,4 +1,5 @@
 
+from random import randint
 import shutil
 from PIL import Image, ImageTk
 from tkinter import StringVar, Tk
@@ -27,6 +28,7 @@ class Asset:
     name        : str
     path        : str
     rsc         : any
+    id          : int
 
     def __load_script(self):
         pass
@@ -54,6 +56,7 @@ class Asset:
         self.name = name
         self.atype = atype
         self.path = path
+        self.id = randint(10000, 99999)
 
 class Collection:
 
@@ -79,10 +82,20 @@ class Group:
 
 class RSCManager:
 
+    __asset_pool        : dict
     __asset_groups      : list[Group]
 
     __util              : Util
     __root              : Tk
+
+    def get_asset_by_id(self, id:int):
+        if id == 0: return None
+        
+        for _,v in self.__asset_pool.items():
+            if v.id != id: continue
+            return v
+
+        return None
 
     def get_coll_var(self, group:str):
         group = group.lower()
@@ -165,14 +178,15 @@ class RSCManager:
             os.makedirs(dirname)
 
         #TODO Add replace option
-        if os.path.exists(dst):
-            return False
-
-        shutil.copyfile(src, dst)
+        if not os.path.exists(dst):
+            shutil.copyfile(src, dst)
 
         asset = Asset(name, ast, dst)
         asset.load()
         self.__collection(group, col).assets.append(asset)
+        self.__asset_pool[asset.id] = asset
+
+        print(f'>> import: {name}')
 
         return True
 
@@ -195,8 +209,7 @@ class RSCManager:
         if len(colls) == 0:
             col = Collection(coll)
             grp.collections.append(col)
-        
-        
+               
     def import_default_assets(self):
 
         uri = self.__util.defaults_uri
@@ -210,8 +223,7 @@ class RSCManager:
                 full = os.path.join(path, f)
                 self.import_asset(full, group, coll)
 
-            pass
-
+        pass
 
     def remove_asset(self, group:str, col:str, name:str):
 
@@ -222,6 +234,7 @@ class RSCManager:
         asset = self.__asset(group, col, name)
 
         os.remove(asset.path)
+        del self.__asset_pool[asset.id]
         self.__collection(group, col).assets.remove(asset)
 
     def serialize(self):
@@ -270,6 +283,7 @@ class RSCManager:
                     v_asset = Asset(name, AType[atype], path)
                     v_asset.load()
                     v_coll.assets.append(v_asset)
+                    self.__asset_pool[v_asset] = v_asset
                     
     def __group(self, group:str) -> Group:
         return [t for t in self.__asset_groups if t.name == group][0]
@@ -296,6 +310,8 @@ class RSCManager:
         
         self.__util = GetUtil()
         self.__root = root
+
+        self.__asset_pool = {}
 
         self.__asset_groups = [
             Group('actor', AType.sprite, self.__root),
