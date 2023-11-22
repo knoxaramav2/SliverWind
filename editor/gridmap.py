@@ -100,11 +100,11 @@ class GridMap(ISerializeable):
         self.__width = width
         self.__height = height
 
-        self.grid = [[None]*height for _ in range(width)]
+        self.grid = [[None]*width for _ in range(height)]
 
-        for x in range(0, len(self.grid)):
-            for y in range(0, len(self.grid[x])):
-                self.grid[x][y] = None
+        for y in range(0, len(self.grid)):
+            for x in range(0, len(self.grid[y])):
+                self.grid[y][x] = None
 
     def list_neightbors(self):
         ret = []
@@ -130,12 +130,12 @@ class GridMap(ISerializeable):
                 map.East = self
 
     def get_block(self, x:int, y:int) -> Block:
-        x = self.grid[x][y]
-        return x
+        ret = self.grid[y][x]
+        return ret
     
     def place_block(self, x:int, y:int, block:Block) -> Block:
         block.pos = (x, y)
-        self.grid[x][y] = block
+        self.grid[y][x] = block
         pass
 
     def size(self) -> tuple[int,int]:
@@ -151,14 +151,14 @@ class GridMap(ISerializeable):
         ret += f'SOUTH={0 if self.South == None else self.South.id};'
         ret += f'EAST={0 if self.East == None else self.East.id};'
         ret += f'WEST={0 if self.West == None else self.West.id};'
-
+        print(f'Saving {len(self.grid)} x {len(self.grid[0])}')
         #Matrix
-        for x in range(len(self.grid)):
+        for y in range(len(self.grid)):
             #Rows
-            ret += 'ROW=['
-            for y in range(len(self.grid[x])):
+            ret += 'COL=['
+            for x in range(len(self.grid[y])):
                 #Cells in row
-                block:Block = self.grid[x][y]
+                block:Block = self.grid[y][x]
                 if block != None:
                     ret += block.serialize(rscman)
                 else:
@@ -248,9 +248,8 @@ class GridManager(ISerializeable):
     def deserialize(self, raw:str, rsc:RSCManager):
         
         last_zone = ''
-        last_map = ''
-        name = ''
-        id = ''
+        map_name = ''
+        map_id = ''
 
         row = 0
         col = 0
@@ -283,13 +282,18 @@ class GridManager(ISerializeable):
                     self.__current.South = card_vals['SOUTH']
                     self.__current.East = card_vals['EAST']
                     self.__current.West = card_vals['WEST']
+
+                    col = 0
+                    row = 0
             elif c == '(':
                 cntr[1] += 1
             elif c == ')':
                 cntr[1] -= 1
+                print(cntr)
                 if cntr[0] == 2 and cntr[1] == 0:#MAP ID
-                    name, id = buff.split(',')
+                    map_name, map_id = buff.split(',')
                 elif cntr[0] == 3 and cntr[1] == 0 and cntr[2] == 1:#Add cell
+                    print(f'PLACE {col},{row}')
                     b = Block()
                     b.image = rsc.get_asset_by_id(img_id)
                     b.overimage = rsc.get_asset_by_id(ovrimg_id)
@@ -303,8 +307,8 @@ class GridManager(ISerializeable):
                 cntr[2] += 1
             elif c == ']':
                 cntr[2] -= 1
-                col = 0
                 row += 1
+                col = 0
             elif c == ':':
                 if buff == 'ZONE':
                     idx = raw.find('=', i)
@@ -316,8 +320,8 @@ class GridManager(ISerializeable):
                     buff = ''
             elif c == '=':
                 if buff == '': continue
-                if buff == 'ROW':
-                    pass
+                if buff == 'COL':
+                    buff = ''
                 else:#KEY=VAL;
                     idx = raw.find(';', i)
                     val = raw[i+1:idx]
@@ -348,7 +352,9 @@ class GridManager(ISerializeable):
                             width, height = val[1:-1].split(',')
                             width = int(width)
                             height = int(height)
-                            self.add_map(last_zone, last_map, width, height)
+                            self.add_map(last_zone, map_name, width, height)
+                            self.__current.id = map_id
+                            col = row = 0
                         else: 
                             card_vals[buff] = int(val)
                     buff = ''

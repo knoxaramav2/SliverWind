@@ -1,7 +1,0 @@
-created:None
-last_write:2023-11-21 22:23:13.601089
-lsprite:
-laud:
-lscript:
-rsc:actor=sprite:default:@|fg=sprite:default:@|bg=sprite:default:@|audio=audio:default:@|scripts=script:default:start.swrit,script,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\scripts\default\start.swrit;@|sprites=sprite:default:blank.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\sprites\default\blank.png;cross.png,sprite,C:\Users\Pat Scott\source\repos\SliverWind\gamedata\test\rsc\sprites\default\cross.png;@
-maps:

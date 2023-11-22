@@ -2,7 +2,7 @@
 
 from functools import partial
 import os
-from tkinter import BooleanVar, Button, Canvas, Checkbutton, Entry, Frame, IntVar, Label, Listbox, Menu, OptionMenu, Scrollbar, StringVar, Text, Tk, messagebox, simpledialog, filedialog as fd
+from tkinter import BooleanVar, Button, Canvas, Checkbutton, Entry, Frame, IntVar, Label, Listbox, Menu, OptionMenu, Scrollbar, StringVar, Text, Tk, Widget, messagebox, simpledialog, filedialog as fd
 import tkinter
 from tkinter.ttk import Notebook, Treeview
 from os.path import dirname, join
@@ -147,8 +147,10 @@ class Window:
 
     def __validate_ctrl_state(self):
         state = 'normal' if self.__world != None else 'disabled'
-        
         for c in self.__wrld_dep:
+            if not hasattr(c, 'configure') or isinstance(c, Widget):
+                #print(f'WRN: "{c}" cannot be validated/configured')
+                continue
             c.configure(state=state)
 
     def __clear_frame(self, f:Frame|Canvas):
@@ -314,19 +316,22 @@ class Window:
         frame.pack()
 
         self.__zones = dropdown
-        self.__wrld_dep.append(dropdown)
+        #self.__wrld_dep.append(dropdown)
 
         return frame
 
     def __init_atlas(self, cvc=None):
 
         if cvc == None: cvc = self.__atlas
+        self.__clear_frame(cvc)
         frame = Frame(cvc)
         
         map_panel = self.__init_map_panel(frame)
 
         map_panel.grid(column=0, row=0, sticky='w')
         frame.pack(fill='both', expand=True)
+
+        self.__refresh_map_panel()
 
         return frame
 
@@ -349,9 +354,9 @@ class Window:
     def __refresh_grid(self):
         print(f'refresh {len(self.__grid)}x{len(self.__grid[0])}')
         map = self.__map_man.curr_map()
-        for x in range(len(self.__grid)):
-            for y in range(len(self.__grid[x])):
-                cell = self.__grid[x][y]
+        for y in range(len(self.__grid)):
+            for x in range(len(self.__grid[y])):
+                cell = self.__grid[y][x]
                 block = map.get_block(x, y)
                 self.__refresh_cell(block, cell)
 
@@ -499,7 +504,7 @@ class Window:
 
         #Todo consolidate
         self.__colls[group] = dropdown
-        self.__wrld_dep.append(dropdown)
+        #self.__wrld_dep.append(dropdown)
 
         return frame
 
@@ -559,6 +564,7 @@ class Window:
 
     def __init_assets(self, cvc):
 
+        self.__clear_frame(cvc)
         tabf = Frame(cvc)
         
         btnf = self.__init_asset_buttons(tabf)
@@ -698,11 +704,11 @@ class Window:
 
         w, h = map.size()
 
-        self.__grid = [[None]*h for _ in range(w)]
+        self.__grid = [[None]*w for _ in range(h)]
 
         frame.blank = self.__get_ico('blank')
-        for y in range(0, h):
-            for x in range(0, w):
+        for y in range(h):
+            for x in range(w):
                 cell = Button(
                     frame, image=frame.blank,
                     background='gray',
@@ -715,7 +721,7 @@ class Window:
                 cell.bind('<Button-1>', partial(self.__click_map_grid, frame, cell))
                 cell.grid(row=y, column=x, padx=0, pady=0)
 
-                self.__grid[x][y] = cell
+                self.__grid[y][x] = cell
         self.__refresh_grid()
         return frame
 
@@ -949,7 +955,7 @@ class Window:
 
         self.__util.set_project_name(name)
         self.__set_title(name)
-        self.__init_configs(world_path)
+        self.__init_configs(world_path, True)
         self.__init_atlas()
         self.__init_assets(self.__assetlib)
         self.__init_map(self.__map)
@@ -977,11 +983,11 @@ class Window:
         self.__settings.last_opened = path
         self.__set_title(os.path.basename(path))
 
-        self.__init_configs(path)
+        self.__init_configs(path, False)
         
         self.__world.open(self.__root)
 
-        self.__init_atlas()
+        self.__init_atlas(self.__atlas)
         self.__init_assets(self.__assetlib)
         self.__init_map(self.__map)
         self.__update_coll_menu()
@@ -1049,10 +1055,11 @@ class Window:
 
         self.__root.title('SWedit '+title)
 
-    def __init_configs(self, path:str = None):
+    def __init_configs(self, path:str = None, enable_defaults:bool=False):
         self.__clear_data()
         self.__rsc_man = RSCManager(self.__root)
-        self.__rsc_man.import_default_assets()
+        if enable_defaults:
+            self.__rsc_man.import_default_assets()
         self.__map_man = GridManager(self.__root)
         self.__world = WorldConfig(path, self.__rsc_man, self.__map_man)
 

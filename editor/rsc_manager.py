@@ -3,7 +3,7 @@ from random import randint
 import shutil
 from PIL import Image, ImageTk
 from tkinter import StringVar, Tk
-from ed_util import Util, GetUtil
+from ed_util import Util, GetUtil, coall
 from enum import Enum
 import os
 
@@ -52,11 +52,11 @@ class Asset:
             case AType.script: self.__load_script()
             case AType.font: self.__load_font()
 
-    def __init__(self, name:str, atype:AType, path:str) -> None:
+    def __init__(self, name:str, atype:AType, path:str, id=None) -> None:
         self.name = name
         self.atype = atype
         self.path = path
-        self.id = randint(10000, 99999)
+        self.id = coall(id, randint(10000, 99999))
 
 class Collection:
 
@@ -245,7 +245,7 @@ class RSCManager:
             for coll in grp.collections:
                 ret += f'{coll.name}:'
                 for ast in coll.assets:
-                    ret += f'{ast.name},{ast.atype.name},{ast.path};'
+                    ret += f'{ast.name},{ast.atype.name},{ast.path},{ast.id};'
                 ret += '@'
             ret += '|'
         
@@ -279,8 +279,8 @@ class RSCManager:
                 for a in assets:
                     if a == '': continue
 
-                    name, atype, path = a.split(',')
-                    v_asset = Asset(name, AType[atype], path)
+                    name, atype, path, id = a.split(',')
+                    v_asset = Asset(name, AType[atype], path, int(id))
                     v_asset.load()
                     v_coll.assets.append(v_asset)
                     self.__asset_pool[v_asset] = v_asset
