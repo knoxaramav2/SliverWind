@@ -10,10 +10,14 @@ class EditorSettings:
     __s_name            : str = ''
     __util              : Util
 
+    last_opened         : str = ''
+    script_editor       : str = ''
+
     def save(self):
         f = open(self.__s_name, 'w')
 
         f.write(f'recent:{self.last_opened}\n')
+        f.write(f'editor:{self.script_editor}\n')
 
         f.flush()
         f.close()
@@ -31,6 +35,7 @@ class EditorSettings:
 
             match k:
                 case 'recent': self.last_opened = v
+                case 'editor': self.script_editor = v
                 case _: pass
 
     def __init__(self):

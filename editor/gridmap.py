@@ -87,6 +87,8 @@ class GridMap(ISerializeable):
     name        : str
     grid        : list[list[Block]]
     
+    on_load     : Asset = None
+
     North       : GridMap = None
     South       : GridMap = None
     East        : GridMap = None
@@ -153,6 +155,7 @@ class GridMap(ISerializeable):
         ret += f'SOUTH={0 if self.South == None else self.South.id};'
         ret += f'EAST={0 if self.East == None else self.East.id};'
         ret += f'WEST={0 if self.West == None else self.West.id};'
+        ret += f'ONLOAD={'' if self.on_load == None else self.on_load.id};'
         print(f'Saving {len(self.grid)} x {len(self.grid[0])}')
         #Matrix
         for y in range(len(self.grid)):
@@ -258,6 +261,7 @@ class GridManager(ISerializeable):
         col = 0
 
         card_vals = {'NORTH':'0', 'SOUTH':'0', 'EAST':'0', 'WEST':'0'}
+        on_load = 0
 
         #Cell buffer
         img_id = 0
@@ -285,7 +289,7 @@ class GridManager(ISerializeable):
                     self.__current.South = card_vals['SOUTH']
                     self.__current.East = card_vals['EAST']
                     self.__current.West = card_vals['WEST']
-
+                    self.__current.on_load = rsc.get_asset_by_id(on_load)
                     col = 0
                     row = 0
             elif c == '(':
@@ -356,6 +360,8 @@ class GridManager(ISerializeable):
                             self.add_map(last_zone, map_name, width, height)
                             self.__current.id = map_id
                             col = row = 0
+                        elif buff == 'ONLOAD':
+                            if val != '': on_load = int(val)
                         else: 
                             card_vals[buff] = int(val)
                     buff = ''

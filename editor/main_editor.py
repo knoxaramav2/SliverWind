@@ -2,6 +2,7 @@
 
 from functools import partial
 import os
+import subprocess
 import sys
 from tkinter import BooleanVar, Button, Canvas, Checkbutton, Entry, Frame, IntVar, Label, Listbox, Menu, OptionMenu, Scrollbar, StringVar, Text, Tk, Widget, messagebox, simpledialog, filedialog as fd
 import tkinter
@@ -174,12 +175,11 @@ class Window:
         return ImageTk.PhotoImage(self.__icons.icons[imgname][0].resize((sz,sz), resample=2))
 #TODO: Add identifiers to controls for validation support
     def __validate_ctrl_state(self):
-        state = 'normal' if self.__world != None else 'disabled'
+        state = 'disabled' if self.__world == None or self.__map_man.curr_map() != None else 'normal'
         for c in self.__wrld_dep:
-            if not hasattr(c, 'configure') or isinstance(c, Widget):
-                #print(f'WRN: "{c}" cannot be validated/configured')
-                continue
+            if not issubclass(type(c), Widget): continue
             c.configure(state=state)
+
 
     def __clear_frame(self, f:Frame|Canvas):
         for c in f.winfo_children():
@@ -401,7 +401,7 @@ class Window:
             col = col.get()
 
         frame:Frame = self.__asset_slct[group]
-        assets = self.__rsc_man.get_assets(group, col)
+        assets = self.__rsc_man.list_assets(group, col)
 
         self.__clear_frame(frame)
 
@@ -634,12 +634,13 @@ class Window:
                 self.__refresh_cell(block, cell)
 
     def __click_map_grid(self, cvc, abtn:Button, event):
-        if self.__curr_asset == None or self.__curr_asset.rsc == None: return
-
+        
+        can_edit = self.__curr_asset != None and self.__curr_asset.rsc != None
         self.__curr_block = abtn
 
         shift = True if event.state == 9 or event.state == 13 else False
         ctrl = True if event.state == 12 or event.state == 13 else False
+        alt = event.state == 131080
 
         x, y = abtn.pos
         map = self.__map_man.curr_map()
@@ -655,9 +656,9 @@ class Window:
     
         print(block.pos)
 
-        if (shift and not ctrl):#Toggle blockings
+        if (shift and not ctrl and can_edit):#Toggle blockings
             block.block = not block.block
-        elif (not shift and ctrl):#Set overdraw
+        elif (not shift and ctrl and can_edit):#Set overdraw
             if block.overimage == self.__curr_asset:
                 block.overimage = None
                 img = None if block.image == None else block.image.rsc
@@ -667,7 +668,7 @@ class Window:
                 img = None if block.overimage == None else block.overimage.rsc
                 abtn.configure(image=img)
             
-        elif (shift and ctrl):#Set/edit event
+        elif (shift and ctrl and can_edit):#Set/edit event
             block_event = block.event
             if block_event == None:
                 block_event = Event()
@@ -706,16 +707,168 @@ class Window:
                 abtn.event_img.destroy()
                 abtn.event_img = None
 
-        else:#Normal place
+        elif can_edit and not alt:#Normal place
             block.image = self.__curr_asset
 
         self.__refresh_cell(block, abtn)
         map.place_block(x, y, block)
         self.__update_toolbox()
 
+    def __script_select(self, cvc):
+        
+        map = self.__map_man.curr_map()
+        if map == None: return
+        
+        coll = StringVar(cvc, '')
+        script = StringVar(cvc, '')
+
+        class ScriptSelect(tkinter.Toplevel):
+            
+            col_sel     : OptionMenu
+            scr_sel     : OptionMenu
+
+            colls       : list[str] = []
+            asts        : list[str] = []
+            load_lbl    : Label
+
+            coll_var    : StringVar
+            scr_var     : StringVar
+
+            rsc         : RSCManager
+
+            
+            def __init__(self, parent, rsc:RSCManager, coll_var:StringVar, scr_var:StringVar):
+                tkinter.Toplevel.__init__(self, parent)
+                self.title('Select Onload Script')
+                self.resizable(False, False)
+                self.grab_set()
+
+                self.rsc = rsc
+                self.col_var = coll_var
+                self.scr_var = scr_var
+                self.res = StringVar(self, '')
+
+                self.colls = rsc.list_collections('scripts')
+                if len(self.colls) == 0: self.colls.append('default')
+                coll_var.set(self.colls[0])
+                print(f'>>> {self.colls[0]}')
+                self.asts = [t.name for t in rsc.list_assets('scripts', coll_var.get())]
+                if len(self.asts) == 0: self.asts.append('')
+
+                new_col = Button(self, text='New Collection', command=self.new_coll)
+                new_scr = Button(self, text='New Script', command=self.new_script)
+                self.col_sel = OptionMenu(self, coll_var, *self.colls)
+                self.scr_sel = OptionMenu(self, scr_var, *self.asts)
+
+                coll_var.trace('w', self.reload_colls)
+                scr_var.trace('w', self.reload_script)
+
+                self.load_lbl = Label(self, text=f'Load script: {self.scr_var.get()}')
+
+                self.ok = Button(self, state=self.ok_state(), text='OK', command=lambda:self.close('OK'))
+                cancel = Button(self, text='Cancel', command=lambda:self.close('Close'))
+
+                self.col_sel.grid(row=0, column=0)
+                new_col.grid(row=0, column=1)
+                self.scr_sel.grid(row=1, column=0)
+                new_scr.grid(row=1, column=1)
+                self.load_lbl.grid(row=2, column=0)
+                self.ok.grid(row=3, column=0)
+                cancel.grid(row=3, column=1)
+
+            def ok_state(self):
+                return 'disabled' if self.scr_var.get() == '' or self.col_var.get() == '' else 'normal'
+
+            def new_coll(self):
+                col_name = simpledialog.askstring('New Collection', 'Name: ')
+                if col_name == None or col_name == '': return
+                if col_name in self.colls: return
+                self.colls.append(col_name)
+                self.reload_colls()
+                self.col_var.set(col_name)
+                self.reload_script()
+
+            def new_script(self, *args):
+                scr_name = simpledialog.askstring('New Collection', 'Name: ')
+                if scr_name == None or scr_name == '' or scr_name in self.asts: return
+                self.asts.append(scr_name)
+                self.scr_var.set(scr_name)
+                self.reload_script()
+
+            def reload_colls(self, *args):
+                new = self.rsc.list_collections('scripts')
+                self.col_sel['menu'].delete(0, 'end')
+                if len(new) > 0: new = [t for t in new if t != '']
+                for i in new:
+                    self.col_sel['menu'].add_command(label=i, command=tkinter._setit(self.col_var, i))
+                self.reload_script()
+
+            def reload_script(self, *args):
+                group = self.col_var.get()
+                new = coall(self.rsc.list_assets('scripts', group), [])
+                new = [t.name for t in new ]
+
+                if len(new) == 0: new.append('')
+                self.scr_sel['menu'].delete(0, 'end')
+                if len(new) > 0: new = [t for t in new if t != '']
+                for i in new:
+                    self.scr_sel['menu'].add_command(label=i, command=tkinter._setit(self.scr_var, i))
+                self.ok.configure(state=self.ok_state())
+
+                self.scr_var.set(new[0])
+                self.load_lbl.configure(text=f'Load Script: {self.scr_var.get()}')
+                
+
+            def close(self, res:str):
+                self.res.set(res)
+                self.destroy()
+
+            def show(self):
+                self.wm_deiconify()
+                self.focus_force()
+                self.wait_window()
+                return self.res.get()
+        
+        ss = ScriptSelect(cvc, self.__rsc_man, coll, script)
+        res = ss.show()
+        if res != 'OK' or coll.get() == '' or script.get() == '':
+            return
+        
+        path = self.__util.join(self.__util.script_uri, [coll.get(), script.get()+'.swrit'])
+        ast = Asset(script.get(), AType.script, path)
+
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(path, 'w').close()
+        self.__rsc_man.add_asset('scripts', coll.get(), ast)
+
+        map.on_load = ast
+
+
+    def __launch_editor(self):
+        map = self.__map_man.curr_map()
+
+        if map == None: return
+
+        if map.on_load == None or map.on_load == '':
+            messagebox.showwarning('Missing script', 
+                                   'No load script set')
+            return
+
+        if self.__settings.script_editor == '':
+            self.__select_editor()
+        if self.__settings.script_editor == '':
+            return
+        
+        map = self.__map_man.curr_map()
+        args = [self.__settings.script_editor, map.on_load.path]
+        subprocess.call(args)
+
     def __init_map_toolbar(self, cvc):
 
         frame = Frame(cvc, width=500, height=25, background='purple', name='map_toolbar')
+
+        script_select = Button(frame, text='Choose Script', command=lambda:self.__script_select(frame))
+        script_edit = Button(frame, text='Onload Script', command=self.__launch_editor)
 
         new_img = self.__get_ico('newmap')
         rem_img = self.__get_ico('remmap')
@@ -731,22 +884,28 @@ class Window:
         new_map.img = new_img
         rem_map = Button(frame, image=rem_img)
         rem_map.img = rem_img
-        overdraw = Checkbutton(frame, image=ovd_img, variable=self.__md_above)
-        overdraw.img = ovd_img
-        event = Checkbutton(frame, image=evt_img, variable=self.__md_event)
-        event.img = evt_img
-        block = Checkbutton(frame, image=blk_img, variable=self.__md_block)
-        block.img = blk_img
+        # overdraw = Checkbutton(frame, image=ovd_img, variable=self.__md_above)
+        # overdraw.img = ovd_img
+        # event = Checkbutton(frame, image=evt_img, variable=self.__md_event)
+        # event.img = evt_img
+        # block = Checkbutton(frame, image=blk_img, variable=self.__md_block)
+        # block.img = blk_img
 
         new_map.configure(command=partial(self.__new_map, cvc))
         rem_map.configure(command=partial(self.__remove_map, cvc))
 
-        rem_map.pack(anchor='e', side='right', padx=5)
-        new_map.pack(anchor='e', side='right', padx=5)
-        event.pack(anchor='center', side='right', padx=5)
-        overdraw.pack(anchor='center', side='right', padx=5)
-        block.pack(anchor='center', side='right', padx=5)
-        self.__wrld_dep.extend([new_map, rem_map, overdraw, block, event])
+        script_select.pack(side='left', padx=5)
+        script_edit.pack(side='left', padx=5)
+        rem_map.pack(side='right', padx=5)
+        new_map.pack(side='right', padx=5)
+        
+        # event.pack(anchor='center', side='right', padx=5)
+        # overdraw.pack(anchor='center', side='right', padx=5)
+        # block.pack(anchor='center', side='right', padx=5)
+        frame.pack(side='top', expand=True, fill='x')
+        self.__wrld_dep.extend([script_edit, script_select, new_map, rem_map, 
+                                # overdraw, block, event
+                                ])
 
         return frame
     
@@ -768,7 +927,9 @@ class Window:
                     background='gray',
                     relief='flat',
                     activebackground='gray',
-                    highlightthickness=1, border=1, bd=1
+                    highlightthickness=0, 
+                    border=0, 
+                    bd=1
                     )
                 cell.pos = (x, y)
                 cell.event_img = None
@@ -966,10 +1127,10 @@ class Window:
         
         self.__clear_frame(cvc)
 
-        x_spacer = Label(cvc, width=100).place(anchor='nw')
-        y_spacer = Label(cvc, height=50).place(anchor='nw')
-
-        frame = Frame(cvc, width=self.__grid_w, height=self.__grid_h, background='black', name='map_tools')
+        frame = Frame(cvc, 
+                      width=self.__grid_w, height=self.__grid_h, 
+                      background='black', name='map_tools',
+                      border=1, bd=1, highlightthickness=1, highlightbackground='gold')
 
         curr_map = self.__map_man.curr_map()
 
@@ -977,7 +1138,7 @@ class Window:
         map = self.__init_map_grid(frame, curr_map)
         toolbox = self.__init_map_toolbox(frame)
 
-        toolbar.pack(expand=True, fill='x', side='top')
+        toolbar.pack(fill='x', side='top')
         map.pack(anchor='center', fill='both', expand=True)
         toolbox.pack(anchor='s', fill='both', expand=True, side='bottom')
 
@@ -1046,16 +1207,29 @@ class Window:
 
     def __save_world(self):
         print('Saving...')
-        if (self.__world == None):
-            print('Nothing to save')
-            return
-
-        self.__settings.last_opened = self.__world.fullpath()
+        
+        if self.__world != None:
+            self.__settings.last_opened = self.__world.fullpath()
+            self.__world.save()
         self.__settings.save()
-        self.__world.save()
 
     def __dbg_cmd(self):
         self.__curr_zone.set('TEST')
+
+    def __select_editor(self):
+        
+        editor = os.path.basename(self.__settings.script_editor)
+        if editor == '': editor = self.__util.editor_uri
+
+        path = fd.askopenfilename(initialdir=editor, title='File Editor', filetypes=[('', '.*')])
+
+        if path == None or path == '':
+            return
+        
+        self.__settings.script_editor = path
+        self.__settings.save()
+
+        print(f'Set editor to {path}')
 
     def __init_menu(self,cvc):
 
@@ -1066,6 +1240,7 @@ class Window:
 
         menubar = Menu(cvc)
         filemenu = Menu(menubar, tearoff=0)
+        scriptmenu = Menu(menubar, tearoff=0)
         helpmenu = Menu(menubar, tearoff=0)
         aboutmenu = Menu(menubar, tearoff=0)
         tilemenu = Menu(menubar, tearoff=0)
@@ -1081,6 +1256,9 @@ class Window:
         filemenu.add_separator()
         filemenu.add_command(label='Exit', command=self.__root.destroy)
         menubar.add_cascade(label='File', menu=filemenu)
+
+        scriptmenu.add_command(label='Choose Editor', command=self.__select_editor)
+        menubar.add_cascade(label='Script', menu=scriptmenu)
 
         helpmenu.add_command(label='Help', command=None)
         menubar.add_cascade(label='Help', menu=helpmenu)
@@ -1145,17 +1323,9 @@ class Window:
         if self.__map != None: self.__map.destroy()
         if self.__assetlib != None: self.__assetlib.destroy()
 
-        self.__atlas = tkinter.Canvas(r, background='red',
-                                        width=atlas_w, height=h,
-                                        )
-
-        self.__map = tkinter.Canvas(r, background='green',
-                             width=w, height=h,
-                             )
-
-        self.__assetlib = tkinter.Canvas(r, background='blue',
-                                        width=assets_w, height=h,
-                                        )
+        self.__atlas = tkinter.Canvas(r)
+        self.__map = tkinter.Canvas(r)
+        self.__assetlib = tkinter.Canvas(r)
         
         self.__atlas.grid(sticky='NW', column=0, row=0)
         self.__map.grid(sticky='NW', column=1, row=0)

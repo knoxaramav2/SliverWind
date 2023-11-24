@@ -88,7 +88,7 @@ class RSCManager:
     __util              : Util
     __root              : Tk
 
-    def get_asset_by_id(self, id:int):
+    def get_asset_by_id(self, id:int) -> Asset:
         if id == 0: return None
         
         for _,v in self.__asset_pool.items():
@@ -96,6 +96,9 @@ class RSCManager:
             return v
 
         return None
+
+    def get_asset(self, group:str, coll:str, name:str):
+        return self.__asset(group, coll, name)
 
     def get_coll_var(self, group:str):
         group = group.lower()
@@ -120,12 +123,21 @@ class RSCManager:
 
         return True
 
+    def add_asset(self, group:str, col:str, ast:Asset):
+        self.add_collection(group, col)
+        if self.__asset(group, col, ast.name): return
+
+        coll = self.__collection(group, col)
+        coll.assets.append(ast)
+    
     def add_collection(self, group:str, col:str):
         group = group.lower()
         col = col.lower()
 
+        if self.collection_exists(group, col): return
+
         path,_ = self.__asset_info(group, col, None)
-        os.makedirs(path)
+        os.makedirs(path, exist_ok=True)
 
         grp = self.__group(group)
         grp.collections.append(Collection(col))
@@ -147,7 +159,7 @@ class RSCManager:
 
         return [t.name for t in grp.collections]
 
-    def get_assets(self, group:str, col:str) -> list[Asset]:
+    def list_assets(self, group:str, col:str) -> list[Asset]:
 
         collect = self.__collection(group, col)
         if collect == None:
@@ -283,10 +295,13 @@ class RSCManager:
                     v_asset = Asset(name, AType[atype], path, int(id))
                     v_asset.load()
                     v_coll.assets.append(v_asset)
-                    self.__asset_pool[v_asset] = v_asset
-                    
+                    self.__asset_pool[v_asset.id] = v_asset
+
+        self.__load_missing()
+
     def __group(self, group:str) -> Group:
-        return [t for t in self.__asset_groups if t.name == group][0]
+        ret = [t for t in self.__asset_groups if t.name == group]
+        return None if len(ret) == 0 else ret[0]
     
     def __collection(self, group:str, coll:str) -> Collection:
         grp = self.__group(group)
@@ -297,7 +312,9 @@ class RSCManager:
 
     def __asset(self, group:str, col:str, name:str) -> Asset:
         collection = self.__collection(group, col)
-        return [t for t in collection.assets if t.name == name][0]
+        if collection == None: return None
+        ret = [t for t in collection.assets if t.name == name]
+        return None if len(ret) == 0 else ret[0]
 
     def __asset_info(self, group:str, col:str, name:str):
         
@@ -305,6 +322,21 @@ class RSCManager:
         grp = self.__group(group)
 
         return (dst, grp.atype)
+
+    def __load_missing(self):
+        uri = self.__util.rsc_uri
+
+        for path, subdirs, files in os.walk(uri):
+            for f in files:
+                partial = path.removeprefix(uri)
+                group = os.path.dirname(partial).strip('\\').strip('/')
+                coll = os.path.basename(partial).strip('\\').strip('/')
+                full = os.path.join(path, f)
+
+                if self.__asset(group, coll, f) != None: 
+                    continue
+
+                self.import_asset(full, group, coll)
 
     def __init__(self, root:Tk) -> None:
         
