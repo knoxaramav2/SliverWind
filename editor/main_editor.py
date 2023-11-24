@@ -633,6 +633,25 @@ class Window:
                 block = map.get_block(x, y)
                 self.__refresh_cell(block, cell)
 
+    def __fill_grid(self, event):
+        map = self.__map_man.curr_map()
+        if map == None or self.__curr_asset == None: return
+        pos = self.__curr_block.pos
+        curr = map.get_block(pos[0], pos[1]).image
+
+        for y in range(len(self.__grid)):
+            for x in range(len(self.__grid[y])):
+                cell = self.__grid[y][x]
+                block = map.get_block(x, y)
+                if block == None:
+                    block = Block()
+                    block.image = self.__curr_asset
+                elif block.image != curr: continue
+                block.image = self.__curr_asset
+                map.place_block(x, y, block)
+        
+        self.__refresh_grid()
+
     def __click_map_grid(self, cvc, abtn:Button, event):
         
         can_edit = self.__curr_asset != None and self.__curr_asset.rsc != None
@@ -843,7 +862,6 @@ class Window:
 
         map.on_load = ast
 
-
     def __launch_editor(self):
         map = self.__map_man.curr_map()
 
@@ -911,7 +929,7 @@ class Window:
     
     def __init_map_grid(self, cvc, map:GridMap):
         frame = Frame(cvc, name='map_grid')
-
+        self.__root.bind('<KeyPress-F>', self.__fill_grid)
         if map == None:
             return frame
 
@@ -1205,7 +1223,7 @@ class Window:
         self.__refresh_asset_select_frames()
         self.__validate_ctrl_state()
 
-    def __save_world(self):
+    def __save_world(self, *args):
         print('Saving...')
         
         if self.__world != None:
@@ -1231,6 +1249,18 @@ class Window:
 
         print(f'Set editor to {path}')
 
+    def __run_map(self, *args):
+
+        save_path = ''
+        map = ''
+
+        # args = [self.__settings.script_editor, map.on_load.path]
+        # subprocess.call(args)
+
+        exec(open(self.__util.launch_uri).read())
+
+        pass
+
     def __init_menu(self,cvc):
 
         lpath = self.__settings.last_opened
@@ -1244,6 +1274,7 @@ class Window:
         helpmenu = Menu(menubar, tearoff=0)
         aboutmenu = Menu(menubar, tearoff=0)
         tilemenu = Menu(menubar, tearoff=0)
+        testmenu = Menu(menubar, tearoff=0)
         dbgmenu = Menu(menubar, tearoff=0)
         show_blocking = BooleanVar(menubar, value=False)
         show_script = BooleanVar(menubar, value=False)
@@ -1274,6 +1305,9 @@ class Window:
                                 variable=show_script, selectcolor='blue')
         menubar.add_cascade(label='Tiles', menu=tilemenu)
 
+        testmenu.add_command(label='Run Map (F5)', command=self.__run_map)
+        menubar.add_cascade(label='Testing', menu=testmenu)
+
         if self.__cfg.debug:
             dbgmenu.add_command(label='DBG CMD', command=self.__dbg_cmd)
             menubar.add_cascade(label='Debug', menu=dbgmenu)
@@ -1298,6 +1332,12 @@ class Window:
             self.__rsc_man.import_default_assets()
         self.__map_man = GridManager(self.__root)
         self.__world = WorldConfig(path, self.__rsc_man, self.__map_man)
+
+    def __init_bindings(self, cvc:Tk):
+
+        cvc.bind('<Control-s>', self.__save_world)
+
+        cvc.bind('<F5>', self.__run_map)
 
     def __init__(self):
 
@@ -1331,6 +1371,7 @@ class Window:
         self.__map.grid(sticky='NW', column=1, row=0)
         self.__assetlib.grid(sticky='NE', column=2, row=0)
 
+        self.__init_bindings(r)
         self.__init_menu(r)
         self.__adjust_win()
         self.__validate_ctrl_state()

@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/src/launch.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": []
+            "args": ["--world=testworld", "--map=default/startmap"]
         },
         {
             "name": "editor",
