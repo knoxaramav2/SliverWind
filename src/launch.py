@@ -1,23 +1,11 @@
 import pygame as pg
 
-from game_controller import GameController
-from display import Display
-
-class Core:
-
-    __game_ctrl     : GameController
-    __display       : Display
-
-    def exec(self):
-        self.__game_ctrl.start()
-
-    def __init__(self):
-        self.__display = Display()
-        self.__game_ctrl = GameController(self.__display)
+from game_core import get_core
 
 if __name__ == "__main__":
 
-    print('Starting...')
+    print('Starting SliverWind')
 
-    core = Core()
-    core.exec()
+    core = get_core()
+    core.start()
+

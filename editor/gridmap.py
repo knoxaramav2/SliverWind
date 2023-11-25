@@ -88,6 +88,7 @@ class GridMap(ISerializeable):
     grid        : list[list[Block]]
     
     on_load     : Asset = None
+    is_start    : bool = False
 
     North       : GridMap = None
     South       : GridMap = None
@@ -186,6 +187,27 @@ class GridManager(ISerializeable):
         self.__current = None
         self.__root = root
 
+    def set_start_map(self, zone:str, mapname:str):
+        
+        zones = self.list_zones()
+        for zone in zones:
+            maps = self.list_maps(zone)
+            map:GridMap
+            for map in maps: map.is_start = False
+
+        self.get_map(zone, mapname).is_start = True
+
+    def get_start_map(self):
+        
+        zones = self.list_zones()
+        for zone in zones:
+            maps = self.list_maps(zone)
+            map:GridMap
+            for map in maps: 
+                if map.is_start: return map
+
+        return None
+
     def set_curr_map(self, map:GridMap):
         self.__current = map
 
@@ -212,7 +234,7 @@ class GridManager(ISerializeable):
             return
         self.__zones[zone] = []
 
-    def get_map(self, zone:str, map:str):
+    def get_map(self, zone:str, map:str) -> GridMap:
         zn = self.__get_zone(zone)
         if zn == None: return None
         mp = [t for t in zn if t.name == map]

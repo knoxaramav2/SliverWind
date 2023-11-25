@@ -1,30 +1,55 @@
 import os
 from os.path import dirname, join
 
+def coall(var, defval=None):
+    return var if var != None else defval
+
 class Util:
 
-    base_uri    : str
-    save_uri    : str
-    rsc_uri     : str
-    sprites_uri : str
-    fg_uri      : str
-    bg_uri      : str
-    font_uri    : str
-    cfg_uri     : str
+    #Top Level
+    base_uri        : str
+    src_uri         : str
+    save_uri        : str
+    gamedata_uri    : str
+    launch_uri      : str
     
-    def __load_path(self):
+    #Engine rsc
+    icon_uri        : str
+    audio_uri       : str
+
+    #Dev
+    dev_save_name   : str
+
+    
+    def __load_path(self, name:str=''):
+        name = os.path.basename(name).split('.')[0]
+        #Top Level
         self.base_uri = dirname(dirname(__file__))
-
-        self.rsc_uri = join(self.base_uri, 'rsc')
         self.save_uri = join(self.base_uri, 'saves')
-        self.font_uri = join(self.rsc_uri, 'fonts')
-        self.fg_uri = join(self.rsc_uri, 'fg')
-        self.bg_uri = join(self.rsc_uri, 'bg')
-        self.sprites_uri = join(self.rsc_uri, 'sprites')
-        self.cfg_uri = join(self.base_uri, 'config')
+        self.gamedata_uri = join(self.base_uri, 'gamedata')
+        self.src_uri = join(self.base_uri, 'src')
+        self.launch_uri = join(self.src_uri, 'launch.py')
 
-    def join(self, part1:str, part2:str):
-        return join(part1, part2)
+        #Resources
+        self.icon_uri = join(self.src_uri, 'editor/icons')
+        self.audio_uri = join(self.src_uri, 'audio')
+
+        #Dev
+        self.dev_save_name = 'DEV_TMP.sav'
+
+    def join(self, part1:str, part2:str|list[str]):
+        
+        if isinstance(part2, list) == False:
+            return join(part1, part2)
+        
+        for p in part2:
+            if p == None: continue
+            part1 = join(part1, p)
+
+        return part1
+
+    def set_project_name(self, name:str):
+        self.__load_path(name)
 
     def __init__(self) -> None:
         self.__load_path()

@@ -175,7 +175,7 @@ class Window:
         return ImageTk.PhotoImage(self.__icons.icons[imgname][0].resize((sz,sz), resample=2))
 #TODO: Add identifiers to controls for validation support
     def __validate_ctrl_state(self):
-        state = 'disabled' if self.__world == None or self.__map_man.curr_map() != None else 'normal'
+        state = 'disabled' if self.__world == None or self.__map_man.curr_map() == None else 'normal'
         for c in self.__wrld_dep:
             if not issubclass(type(c), Widget): continue
             c.configure(state=state)
@@ -331,7 +331,8 @@ class Window:
         self.__clear_frame(frame)
         for i in range(0, len(maps)):
             map:GridMap = maps[i]
-            b = Button(frame, text=f'{map.name} : ({map.id})')
+            bg = 'gray' if not map.is_start else 'gold'
+            b = Button(frame, background=bg, text=f'{map.name} : ({map.id})')
             b.configure(command=partial(self.__change_map, map))
             b.pack(expand=True, fill='x', pady=3)
 
@@ -1190,6 +1191,13 @@ class Window:
         self.__init_map(self.__map)
         self.__update_coll_menu(refresh_all=True)
         self.__refresh_asset_select_frames()
+
+        self.__map_man.add_map('default', 'map_1', 10, 10)
+        self.__map_man.set_start_map('default', 'map_1')
+        self.__change_map(self.__map_man.curr_map())
+
+        self.__refresh_zone_menu()
+        self.__refresh_map_panel()
         self.__validate_ctrl_state()
         
     def __load_world(self, path:str=None):
@@ -1221,6 +1229,10 @@ class Window:
         self.__init_map(self.__map)
         self.__update_coll_menu()
         self.__refresh_asset_select_frames()
+
+        smap = self.__map_man.get_start_map()
+        self.__change_map(smap)
+
         self.__validate_ctrl_state()
 
     def __save_world(self, *args):
