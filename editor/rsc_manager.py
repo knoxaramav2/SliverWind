@@ -9,16 +9,18 @@ import os
 
 
 SPRITE_EXT = ['.png', '.jpg', '.jpeg']
-SCRIPT_EXT = ['.swrit']
 FONT_EXT = ['.ttf']
 AUDIO_EXT = ['.mp3', '.aac']
+ACTOR_EXT = ['.as']
+SCRIPT_EXT = ['.swrit']
 
 AType = Enum(
     'atype', [
         'audio',
         'sprite',
         'font',
-        'script'
+        'script',
+        'actor'
     ]
 )
 
@@ -39,6 +41,9 @@ class Asset:
     def __load_font(self):
         pass
 
+    def __load_actor_sheet(self):
+        pass
+
     def __load_sprite(self):
         img = Image.open(self.path).convert('RGBA')
         img = img.resize((16,16), resample=3)
@@ -50,6 +55,7 @@ class Asset:
             case AType.sprite: self.__load_sprite()
             case AType.audio: self.__load_audio()
             case AType.script: self.__load_script()
+            case AType.actor: self.__load_actor_sheet()
             case AType.font: self.__load_font()
 
     def __init__(self, name:str, atype:AType, path:str, id=None) -> None:
@@ -172,6 +178,7 @@ class RSCManager:
             case AType.font: return FONT_EXT
             case AType.sprite: return SPRITE_EXT
             case AType.script: return SCRIPT_EXT
+            case AType.actor: return ACTOR_EXT
 
     def import_asset(self, src:str, group:str, col:str):
         
@@ -212,6 +219,7 @@ class RSCManager:
             elif ext in AUDIO_EXT: atype = AType.audio
             elif ext in SCRIPT_EXT: atype = AType.script
             elif ext in FONT_EXT: atype = AType.font
+            elif ext in ACTOR_EXT: atype = AType.actor
 
             new_group = Group(group, atype, self.__root)
             self.__asset_groups.append(new_group)
@@ -346,7 +354,7 @@ class RSCManager:
         self.__asset_pool = {}
 
         self.__asset_groups = [
-            Group('actor', AType.sprite, self.__root),
+            Group('actors', AType.actor, self.__root),
             Group('fg', AType.sprite, self.__root),
             Group('bg', AType.sprite, self.__root),
             Group('audio', AType.audio, self.__root),

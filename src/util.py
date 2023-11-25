@@ -1,6 +1,8 @@
 import os
 from os.path import dirname, join
 
+import pygame
+
 def coall(var, defval=None):
     return var if var != None else defval
 
@@ -20,6 +22,7 @@ class Util:
     #Dev
     dev_save_name   : str
 
+    __no_img        : any
     
     def __load_path(self, name:str=''):
         name = os.path.basename(name).split('.')[0]
@@ -37,6 +40,14 @@ class Util:
         #Dev
         self.dev_save_name = 'DEV_TMP.sav'
 
+    def missing_img(self): 
+        return self.__no_img 
+
+    def __load_static(self):
+        path = self.join(self.src_uri, ['icons', 'cross.png'])
+        self.__no_img = pygame.image.load(path)
+        self.__no_img = pygame.transform.scale(self.__no_img, (32, 32))
+
     def join(self, part1:str, part2:str|list[str]):
         
         if isinstance(part2, list) == False:
@@ -53,7 +64,8 @@ class Util:
 
     def __init__(self) -> None:
         self.__load_path()
-    
+        self.__load_static()
+
 __inst__ : Util = None
 def GetUtil() -> Util:
     global __inst__

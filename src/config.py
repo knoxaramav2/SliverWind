@@ -10,6 +10,8 @@ class Config:
     fullscreen          : bool = False
     sprite_scale        : int = 32
 
+    fps                 : int = 24
+
     #Dev stuff
     dev_mode            : bool = False
     dev_god_mode        : bool = False
@@ -29,6 +31,7 @@ class Config:
                 case '--height': self.win_width=int(v)
                 case '--fullscreen': self.fullscreen = True
                 case '--spritedim': self.sprite_scale = int(v)
+                case '--fps': self.fps = int(v)
 
                 case '-d': self.dev_mode = True
                 case '-g': self.dev_god_mode = self.dev_mode = True

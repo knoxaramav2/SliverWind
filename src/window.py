@@ -26,6 +26,16 @@ class Window:
                 self.__canvas.blit(img, (x*sc, y*sc))
         pygame.display.flip()
 
+    def draw_sprite(self,
+                    sprite,
+                    pos:tuple[float, float]
+                    ):
+        sc = self.__cfg.sprite_scale
+        self.__canvas.blit(sprite, (pos[0]*sc, pos[1]*sc))
+
+    def render(self):
+        pygame.display.update()
+
     def clear_screen(self):
         self.__canvas.fill((0,0,0))
 
