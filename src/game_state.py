@@ -6,7 +6,10 @@ from world_data import Map, WorldData
 
 class GameState(Serializeable):
 
-    world         : WorldData = None
+    __world           : WorldData = None
+
+    def get_worlddata(self) -> WorldData:
+        return self.__world
 
     #From save file
     def serialize(self):
@@ -20,13 +23,13 @@ class GameState(Serializeable):
     
     #From world model
     def load_swc(self, content:str):
-        self.world = WorldData()
-        self.world.load_world_model(content)
+        self.__world = WorldData()
+        self.__world.load_world_model(content)
         rsc_man = get_assetmanager()
         rsc_man.load_from_model(content)
 
     def unload_world(self):
-        self.world = None
+        self.__world = None
 
     def __init__(self) -> None:
         super().__init__()

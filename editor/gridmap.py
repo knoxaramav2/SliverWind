@@ -152,6 +152,7 @@ class GridMap(ISerializeable):
         #Metadata
         ret += f'({self.name},{self.id})={{'
         ret += f'DIM=({self.__width},{self.__height});'
+        ret += f'START={self.is_start};'
         ret += f'NORTH={0 if self.North == None else self.North.id};'
         ret += f'SOUTH={0 if self.South == None else self.South.id};'
         ret += f'EAST={0 if self.East == None else self.East.id};'
@@ -284,6 +285,7 @@ class GridManager(ISerializeable):
 
         card_vals = {'NORTH':'0', 'SOUTH':'0', 'EAST':'0', 'WEST':'0'}
         on_load = 0
+        is_start = False
 
         #Cell buffer
         img_id = 0
@@ -312,6 +314,7 @@ class GridManager(ISerializeable):
                     self.__current.East = card_vals['EAST']
                     self.__current.West = card_vals['WEST']
                     self.__current.on_load = rsc.get_asset_by_id(on_load)
+                    self.__current.is_start = is_start
                     col = 0
                     row = 0
             elif c == '(':
@@ -382,6 +385,8 @@ class GridManager(ISerializeable):
                             self.add_map(last_zone, map_name, width, height)
                             self.__current.id = map_id
                             col = row = 0
+                        elif buff == 'START': 
+                            is_start = val == 'True'
                         elif buff == 'ONLOAD':
                             if val != '': on_load = int(val)
                         else: 

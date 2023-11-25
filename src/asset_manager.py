@@ -3,6 +3,10 @@
 from enum import Enum
 import os
 
+import pygame
+
+from config import get_config
+
 
 SPRITE_EXT = ['.png', '.jpg', '.jpeg']
 SCRIPT_EXT = ['.swrit']
@@ -30,6 +34,9 @@ class Asset:
         if self.atype == AType.audio:
             pass
         elif self.atype == AType.sprite:
+            sc = get_config().sprite_scale
+            self.rsc = pygame.image.load(self.path)
+            self.rsc = pygame.transform.scale(self.rsc, (sc, sc))
             pass
         elif self.atype == AType.font:
             pass

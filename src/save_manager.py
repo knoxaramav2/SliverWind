@@ -25,7 +25,7 @@ class SaveManager:
         f.write('HEADER::\n')
         f.write('ENGINE_VER=1.0.0\n')
         f.write(f'LAST_WRITE={datetime.now()}\n')
-        f.write(f'WORLD={self.__gstate.world.name()}\n')
+        f.write(f'WORLD={self.__gstate.get_worlddata().name()}\n')
         f.write('::HEADER\n')
         f.write('WORLD::\n')
         f.write(self.__gstate.serialize()+'\n')
@@ -65,6 +65,11 @@ class SaveManager:
         self.__gstate.deserialize(state_content)
 
     def __load_model(self, path):
+
+        if not os.path.exists(path):
+            print(f'Model file {path} not found.')
+            return
+
         f = open(path, 'r')
         content = f.read()
         self.__gstate.load_swc(content)

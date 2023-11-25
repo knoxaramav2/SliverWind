@@ -73,6 +73,12 @@ class Map(Serializeable):
         if e != 0: self.__neighbors[2] = e
         if w != 0: self.__neighbors[3] = w
 
+    def get_size(self):
+        return self.__size
+
+    def get_cell(self, x:int, y:int):
+        return self.__grid[y][x]
+
     def place_cell(self, cell:Cell):
         x, y = cell.pos
         self.__grid[y][x] = cell
@@ -93,11 +99,24 @@ Maintain world/map state
 class WorldData(Serializeable):
 
     __name              : str = ''
-    
+    __start_map         : int = 0
     __maps              : dict = {}
     __current_map       : Map = None
 
-    def name(self): return self.__name
+    def name(self) -> str: 
+        return self.__name
+
+    def get_current(self):
+        return self.__current_map
+
+    def set_current(self, zone:str, name:str):
+        smap = self.__maps[zone]
+
+        v:Map
+        for v in self.__maps.values:
+            if v.name == name:
+                self.__current_map = v
+                return
 
     #For new worlds, loads .swc from editor
     def load_world_model(self, raw:str):
@@ -150,7 +169,7 @@ class WorldData(Serializeable):
                     y = 0
                 #End of section
                 elif state[0] == 0 and state[1] == 0 and state[2] == 0:
-                    return
+                    break
             elif c == '(': state[1] += 1
             elif c == ')':
                 state[1] -= 1
@@ -208,6 +227,8 @@ class WorldData(Serializeable):
                         map = Map(map_name, int(map_id), zone, w, h)
                         self.__maps[int(map_id)] = map
                         curr_map = map
+                    elif buff == 'START':
+                        if val == 'True': self.__start_map = int(map_id)
                     elif buff == 'ONLOAD':
                         if val != '': onload_id = int(val)
                     else:
@@ -217,8 +238,7 @@ class WorldData(Serializeable):
             else:
                 buff += c
 
-
-
+        self.__current_map = self.__maps[self.__start_map]
 
         return True
 
