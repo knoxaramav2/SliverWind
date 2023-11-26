@@ -42,13 +42,13 @@ class GameLoop(Runnable):
 
         cancel = Button(
             self.__win.get_canvas(),
-            'Cancel', dim=(10, 10),
+            'Cancel',
             callback=lambda:print('TEST QUIT')
         )
 
         ok = Button(
             self.__win.get_canvas(),
-            'OK', dim=(10, 10),
+            'OK',
             callback=lambda:print('TEST ACCEPT')
         )
         
