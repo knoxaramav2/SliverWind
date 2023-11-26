@@ -62,6 +62,12 @@ class Util:
     def set_project_name(self, name:str):
         self.__load_path(name)
 
+    def combine_funcs(*fncs):
+        def comb_funcs(*args, **argvs):
+            for f in fncs:
+                f(args, argvs)
+        return comb_funcs
+
     def __init__(self) -> None:
         self.__load_path()
         self.__load_static()

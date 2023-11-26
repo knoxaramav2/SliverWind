@@ -12,6 +12,8 @@ class Control:
     _background    : tuple[int, int, int]
     _parent        : Control
 
+    def on_click(self): pass
+
     def resize(self, dim:tuple[int,int]=(1, 1), pad:int=5):
         return
 
@@ -63,6 +65,11 @@ class Control:
 class Container(Control):
 
     __children      : list[Control]
+
+    def on_click(self):
+        super().on_click()
+        for c in self.__children:
+            if c.on_click(): return
 
     def resize(self, pad:int=5):
 
@@ -118,16 +125,20 @@ class Label(Control):
     def update(self):
         if not self._visible: return
         if not self._background_off: super().update()
-        self._canvas.blit(self.__text, self._bounds.center)
+        super().update()
+        self._canvas.blit(self.__text, self._bounds)
         
-
     def set_text(self, text:str):
         self.__font = 'arial'
         self.__size = 30
         font = pygame.font.SysFont(self.__font, self.__size)
         self.__text = font.render(text, 1, self.__foreground, self._background)
-        #self._bounds = self.__text.get_rect()
-        self.move(self.__text.get_rect().center)
+        self._bounds = self.__text.get_rect()
+        self._bounds.topleft = self.__text.get_rect().center
+        #self.move(self.__text.get_rect().center)
+
+    def move(self, pos: tuple[int, int]):
+        super().move(pos)
 
     def __init__(self, 
                  canvas: pygame.Surface,
@@ -157,7 +168,10 @@ class Button(Control):
 
     def on_click(self):
         if not self._visible or self.__callback == None: return
-        self.__callback()
+        pos = pygame.mouse.get_pos()
+        print(f'{pos} | {self._bounds}')
+        if self._bounds.collidepoint(pos):
+            self.__callback()
 
     def resize(self, pad:int = 5):
         self._bounds.width = self.__text._bounds.width+(2*pad)
@@ -183,6 +197,9 @@ class Menu(Container):
 
     __title         : str
     __canvas        : pygame.Surface
+
+    def on_click(self):
+        super().on_click()
 
     def show(self):
         super().show()

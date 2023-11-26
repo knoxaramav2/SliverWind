@@ -969,6 +969,7 @@ class Window:
     def __update_toolbox(self):
 
         map = self.__map_man.curr_map()
+        if map == None: return
         block = None
         curr = self.__curr_block
         if curr == None:
