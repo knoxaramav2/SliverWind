@@ -136,6 +136,7 @@ class Window:
 
     __curr_block: Button     = None
     __toolbox_txt: dict = None
+    __isstart   : Checkbutton
 
     #Controls disabled when world not loaded
     __wrld_dep  : list = []
@@ -331,7 +332,7 @@ class Window:
         self.__clear_frame(frame)
         for i in range(0, len(maps)):
             map:GridMap = maps[i]
-            bg = 'gray' if not map.is_start else 'gold'
+            bg = 'gray' if map != self.__map_man.get_start_map() else 'gold'
             b = Button(frame, background=bg, text=f'{map.name} : ({map.id})')
             b.configure(command=partial(self.__change_map, map))
             b.pack(expand=True, fill='x', pady=3)
@@ -903,12 +904,6 @@ class Window:
         new_map.img = new_img
         rem_map = Button(frame, image=rem_img)
         rem_map.img = rem_img
-        # overdraw = Checkbutton(frame, image=ovd_img, variable=self.__md_above)
-        # overdraw.img = ovd_img
-        # event = Checkbutton(frame, image=evt_img, variable=self.__md_event)
-        # event.img = evt_img
-        # block = Checkbutton(frame, image=blk_img, variable=self.__md_block)
-        # block.img = blk_img
 
         new_map.configure(command=partial(self.__new_map, cvc))
         rem_map.configure(command=partial(self.__remove_map, cvc))
@@ -1004,7 +999,15 @@ class Window:
         self.__toolbox_txt['COLLIDE'].configure(text=f'On Collide: {event_tmp.collide}')
         self.__toolbox_txt['SCRIPT'].configure(text=f'Script: {event_tmp.script}')
         self.__toolbox_txt['SCRIPT_ARGS'].configure(text=f'Args: {event_tmp.script_args}')
-
+        self.__isstart.var.set(map == self.__map_man.get_start_map())
+        coms = self.__util.combine_funcs(
+                partial(self.__map_man.set_start_map, map._zone, map.name),
+                self.__refresh_map_panel)
+        self.__isstart.configure(
+            command=self.__util.combine_funcs(
+                partial(self.__map_man.set_start_map, map._zone, map.name),
+                self.__refresh_map_panel)
+        )
 
         self.__update_dir_btn(self.__toolbox_txt['MAPDIR_UP'], map.North)
         self.__update_dir_btn(self.__toolbox_txt['MAPDIR_DOWN'], map.South)
@@ -1066,6 +1069,10 @@ class Window:
         collide = Label(event_info, text='On Collide: ')
         script = Label(event_info, text='Script: ')
         args = Label(event_info, text='Args: ')
+        isstart_var = BooleanVar(event_info, value=map == self.__map_man.get_start_map())
+        self.__isstart = Checkbutton(event_info, text='Start Map', variable=isstart_var)
+        self.__isstart.var = isstart_var
+        isstart = self.__isstart
 
         self.__toolbox_txt['TRANSPORT'] = transport
         self.__toolbox_txt['COLLIDE'] = collide
@@ -1096,7 +1103,7 @@ class Window:
         dir_right.img_green = dir_right_img_green
 
         if not dir_up in self.__wrld_dep:
-            self.__wrld_dep.extend([dir_up, dir_down, dir_left, dir_right])
+            self.__wrld_dep.extend([dir_up, dir_down, dir_left, dir_right, isstart])
 
         self.__toolbox_txt['MAPDIR_UP'] = dir_up
         self.__toolbox_txt['MAPDIR_DOWN'] = dir_down
@@ -1119,6 +1126,7 @@ class Window:
         collide.grid(column=1, row=0)
         script.grid(column=0, row=1)
         args.grid(column=1, row=1)
+        self.__isstart.grid(column=0, row=2)
 
         dir_up.grid(column=1, row=0)
         dir_left.grid(column=0, row=1)

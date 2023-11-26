@@ -60,6 +60,12 @@ class Util:
     def __init__(self) -> None:
         self.__load_path()
     
+    def combine_funcs(*fncs):
+        def comb_funcs(*args, **argvs):
+            for f in fncs[1:]:
+                f(*args, **argvs)
+        return comb_funcs
+
 __inst__ : Util = None
 def GetUtil() -> Util:
     global __inst__

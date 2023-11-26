@@ -6,6 +6,7 @@ from config import Config, get_config
 from controls import Button, Menu
 from game_state import GameState, get_gamestate
 from interface import RUN_RESULT, Runnable
+from overworld import Overworld
 from util import GetUtil, Util
 from window import Camera, Window, get_win
 from world_data import WorldData
@@ -17,6 +18,7 @@ class GameLoop(Runnable):
     __cam           : Camera
     __gstate        : GameState
     __world         : WorldData
+    __overworld     : Overworld
     __active        : bool = True
     __pause         : bool = False
     __exit_code     : RUN_RESULT = RUN_RESULT.OK
@@ -157,6 +159,7 @@ class GameLoop(Runnable):
         self.__win = get_win()
         self.__gstate = get_gamestate()
         self.__world = self.__gstate.get_worlddata()
+        self.__overworld = Overworld(self.__world)
         self.__factory = ActorFactory()
         self.__init_menu()
         self.__init_camera()

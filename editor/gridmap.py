@@ -1,7 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 from random import randint
-from tkinter import Tk
+from tkinter import BooleanVar, Tk
 from serial import ISerializeable
 from ed_util import coall
 
@@ -88,7 +88,6 @@ class GridMap(ISerializeable):
     grid        : list[list[Block]]
     
     on_load     : Asset = None
-    is_start    : bool = False
 
     North       : GridMap = None
     South       : GridMap = None
@@ -104,7 +103,6 @@ class GridMap(ISerializeable):
         
         self.__width = width
         self.__height = height
-
         self.grid = [[None]*width for _ in range(height)]
 
         for y in range(0, len(self.grid)):
@@ -152,7 +150,6 @@ class GridMap(ISerializeable):
         #Metadata
         ret += f'({self.name},{self.id})={{'
         ret += f'DIM=({self.__width},{self.__height});'
-        ret += f'START={self.is_start};'
         ret += f'NORTH={0 if self.North == None else self.North.id};'
         ret += f'SOUTH={0 if self.South == None else self.South.id};'
         ret += f'EAST={0 if self.East == None else self.East.id};'
@@ -181,33 +178,20 @@ class GridManager(ISerializeable):
 
     __zones         : dict
     __current       : GridMap
+    __start_map     : GridMap
     __root          : Tk
 
     def __init__(self, root:Tk):
         self.__zones = {}
         self.__current = None
+        self.__start_map = None
         self.__root = root
 
     def set_start_map(self, zone:str, mapname:str):
-        
-        zones = self.list_zones()
-        for zone in zones:
-            maps = self.list_maps(zone)
-            map:GridMap
-            for map in maps: map.is_start = False
-
-        self.get_map(zone, mapname).is_start = True
+        self.__start_map = self.get_map(zone, mapname)
 
     def get_start_map(self):
-        
-        zones = self.list_zones()
-        for zone in zones:
-            maps = self.list_maps(zone)
-            map:GridMap
-            for map in maps: 
-                if map.is_start: return map
-
-        return None
+        return self.__start_map
 
     def set_curr_map(self, map:GridMap):
         self.__current = map
@@ -263,8 +247,9 @@ class GridManager(ISerializeable):
 
     def serialize(self, rscman:RSCManager):
         ret = ''
-
+        start_id = 0 if self.__start_map == None else self.__start_map.id
         for zone, maps in self.__zones.items():
+            ret += f'START={start_id};'
             ret += f'ZONE:{zone}={{'
             map:GridMap
             for map in maps:
@@ -279,13 +264,13 @@ class GridManager(ISerializeable):
         last_zone = ''
         map_name = ''
         map_id = ''
+        start_id = 0
 
         row = 0
         col = 0
 
         card_vals = {'NORTH':'0', 'SOUTH':'0', 'EAST':'0', 'WEST':'0'}
         on_load = 0
-        is_start = False
 
         #Cell buffer
         img_id = 0
@@ -314,7 +299,6 @@ class GridManager(ISerializeable):
                     self.__current.East = card_vals['EAST']
                     self.__current.West = card_vals['WEST']
                     self.__current.on_load = rsc.get_asset_by_id(on_load)
-                    self.__current.is_start = is_start
                     col = 0
                     row = 0
             elif c == '(':
@@ -352,6 +336,11 @@ class GridManager(ISerializeable):
                 if buff == '': continue
                 if buff == 'COL':
                     buff = ''
+                elif buff == 'START':
+                    idx = raw.find(';', i)
+                    start_id = int(raw[i+1:idx])
+                    i = idx
+                    buff = ''
                 else:#KEY=VAL;
                     idx = raw.find(';', i)
                     val = raw[i+1:idx]
@@ -382,11 +371,10 @@ class GridManager(ISerializeable):
                             width, height = val[1:-1].split(',')
                             width = int(width)
                             height = int(height)
-                            self.add_map(last_zone, map_name, width, height)
+                            tmp = self.add_map(last_zone, map_name, width, height)
                             self.__current.id = map_id
+                            if start_id == int(tmp.id): self.__start_map = tmp
                             col = row = 0
-                        elif buff == 'START': 
-                            is_start = val == 'True'
                         elif buff == 'ONLOAD':
                             if val != '': on_load = int(val)
                         else: 

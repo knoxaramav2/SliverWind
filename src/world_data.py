@@ -73,10 +73,13 @@ class Map(Serializeable):
         if e != 0: self.__neighbors[2] = e
         if w != 0: self.__neighbors[3] = w
 
-    def get_size(self):
+    def get_neighbors(self):
+        return self.__neighbors
+
+    def get_size(self) -> tuple[int, int]:
         return self.__size
 
-    def get_cell(self, x:int, y:int):
+    def get_cell(self, x:int, y:int) -> Cell:
         return self.__grid[y][x]
 
     def place_cell(self, cell:Cell):
@@ -117,6 +120,13 @@ class WorldData(Serializeable):
             if v.name == name:
                 self.__current_map = v
                 return
+
+    def get_by_id(self, id:int):
+
+        for kz, vz in self.__maps.items():
+            pass
+
+        pass
 
     #For new worlds, loads .swc from editor
     def load_world_model(self, raw:str):
