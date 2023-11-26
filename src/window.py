@@ -14,6 +14,9 @@ class Window:
     __rsc           : AssetManager
     __cfg           : Config
 
+    def get_canvas(self):
+        return self.__canvas
+
     def draw_map(self, map:Map):
 
         dim = map.get_size()
@@ -24,7 +27,7 @@ class Window:
                 cell = map.get_cell(x, y)
                 img = self.__rsc.get(AType.sprite, cell.image_id)
                 self.__canvas.blit(img, (x*sc, y*sc))
-        pygame.display.flip()
+        
 
     def draw_sprite(self,
                     sprite,

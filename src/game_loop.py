@@ -3,6 +3,7 @@
 import pygame
 from actor import ACTOR_CLASS, Actor, ActorFactory
 from config import Config, get_config
+from controls import Button, Menu
 from game_state import GameState, get_gamestate
 from interface import RUN_RESULT, Runnable
 from window import Window, get_win
@@ -21,13 +22,44 @@ class GameLoop(Runnable):
     __clock         : pygame.time.Clock
     __cfg           : Config
 
+    __menu          : Menu
+
     def __update(self):
         self.__player.update()
 
+    def __handle_event(self, e):
+        if e.type == pygame.KEYDOWN:
+            match e.key:
+                case pygame.K_ESCAPE:
+                    if not self.__menu._visible: self.__menu.show()
+                    else: self.__menu.hide()
         pass
 
-    def __handle_event(self, e):
-        pass
+    def __init_menu(self):
+        sz = pygame.display.get_window_size()
+        
+        ctrls = []
+
+        cancel = Button(
+            self.__win.get_canvas(),
+            'Cancel', dim=(10, 10),
+            callback=lambda:print('TEST QUIT')
+        )
+
+        ok = Button(
+            self.__win.get_canvas(),
+            'OK', dim=(10, 10),
+            callback=lambda:print('TEST ACCEPT')
+        )
+        
+        self.__menu = Menu(
+            self.__win.get_canvas(),
+            'Menu',
+            dim=(sz[0]/2, sz[1]/2)
+            )
+        self.__menu.add(cancel, 0, 0)
+        self.__menu.add(ok, 1, 0)
+        self.__menu.pack()
 
     def __handle_keys(self):
         keys = pygame.key.get_pressed()
@@ -50,6 +82,14 @@ class GameLoop(Runnable):
             self.__update()
             self.__draw_background()
             self.__draw_sprites()
+            self.__draw_menus()
+            pygame.display.update()
+
+    def __draw_background(self):
+        self.__win.draw_map(self.__world.get_current())
+
+    def __draw_menus(self):
+        self.__menu.update()
 
     def __draw_sprites(self):
         self.__win.draw_sprite(self.__player.sprite, self.__player.pos)
@@ -61,9 +101,6 @@ class GameLoop(Runnable):
             'dev', (5, 5), 
         )
         pass
-
-    def __draw_background(self):
-        self.__win.draw_map(self.__world.get_current())
 
     def run(self) -> RUN_RESULT:
         self.__clock = pygame.time.Clock()
@@ -83,3 +120,4 @@ class GameLoop(Runnable):
         self.__gstate = get_gamestate()
         self.__world = self.__gstate.get_worlddata()
         self.__factory = ActorFactory()
+        self.__init_menu()
