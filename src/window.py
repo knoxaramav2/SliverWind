@@ -77,6 +77,15 @@ class Window:
         return self.__cam
     
     #Render
+    def draw_border(self, rect:Rect, width:int=5, color:tuple=(0,0,255)):
+        if not self.__cfg.draw_border: return
+        
+        x, y, w, h = rect
+        pygame.draw.rect(self.__canvas, color, Rect(x, y, w, width))
+        pygame.draw.rect(self.__canvas, color, Rect(x, y+h-width, w, width))
+        pygame.draw.rect(self.__canvas, color, Rect(x, y, width, h))
+        pygame.draw.rect(self.__canvas, color, Rect(x+w-width, y, width, h))
+
     def draw_map(self, map:OW_Map, prev:OW_Map = None):
         if map == None: return
 
@@ -89,14 +98,11 @@ class Window:
         elif map.west != prev: 
             self.draw_map(map.west, map)
 
-        if self.__cfg.draw_border:
-            mx, my = map.rect.topleft
-            w, h = map.rect.width, map.rect.height
-            cx, cy = self.__cam.get_pos()
-            rect = Rect(mx-cx, my-cy, w, h)
-            # if map.west != None:
-            #     print(f'____ {rect.topleft} __ {cx}, {cy} __ {mx},{my}')
-            pygame.draw.rect(self.__canvas, (255,0,0), rect, width=5)
+        mx, my = map.rect.topleft
+        w, h = map.rect.width, map.rect.height
+        cx, cy = self.__cam.get_pos()
+        rect = Rect(mx-cx, my-cy, w, h)
+        self.draw_border(rect)
 
     '''Recursively render all visible maps on island'''
     def draw_island(self, island:Overworld):
