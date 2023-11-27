@@ -9,7 +9,7 @@ from interface import RUN_RESULT, Runnable
 from overworld import Overworld
 from util import GetUtil, Util
 from window import Camera, Window, get_win
-from world_data import WorldData
+from world_data import Map, WorldData
 
 
 class GameLoop(Runnable):
@@ -48,9 +48,12 @@ class GameLoop(Runnable):
 
         x_dir = keys[pygame.K_d] - keys[pygame.K_a]
         y_dir = keys[pygame.K_s] - keys[pygame.K_w]
+        sprint = keys[pygame.K_LSHIFT]
 
         if x_dir == 0 and y_dir == 0: return
 
+        x_dir += sprint*x_dir 
+        y_dir += sprint*y_dir
         self.__player.move(x_dir, y_dir)
         self.__cam.move(self.__player.pos)
 
@@ -102,14 +105,18 @@ class GameLoop(Runnable):
 
     def run(self) -> RUN_RESULT:
         self.__clock = pygame.time.Clock()
-        map = self.__world.get_current()
-        self.__win.draw_map(map)
         self.__spawn_player()
         self.__loop()
         return self.__exit_code
     
     def exit(self):
         self.__active = False
+
+    def __load_island(self):
+        self.__cam.fade_out()
+        self.__overworld = Overworld(self.__world)
+        #load graphic
+        self.__cam.fade_in()
 
 #Rendering
     def __draw_sprites(self):
@@ -118,7 +125,7 @@ class GameLoop(Runnable):
 
     def __draw_background(self):
         self.__win.clear_screen()
-        self.__win.draw_map(self.__world.get_current())
+        self.__win.draw_island(self.__overworld)
 
     def __draw_menus(self):
         self.__menu.update()
@@ -159,7 +166,8 @@ class GameLoop(Runnable):
         self.__win = get_win()
         self.__gstate = get_gamestate()
         self.__world = self.__gstate.get_worlddata()
-        self.__overworld = Overworld(self.__world)
         self.__factory = ActorFactory()
         self.__init_menu()
         self.__init_camera()
+
+        self.__load_island()

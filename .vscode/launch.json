@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/src/launch.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--startmap=testworld/default/startmap", "-g"]
+            "args": ["--draw-border", "--startmap=testworld/default/startmap", "-g"]
         },
         {
             "name": "editor",

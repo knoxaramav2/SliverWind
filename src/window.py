@@ -3,6 +3,7 @@ import pygame
 from pygame import Rect
 from asset_manager import AType, AssetManager, get_assetmanager
 from config import Config, get_config
+from overworld import OW_Map, Overworld
 from world_data import Map
 
 
@@ -23,6 +24,12 @@ class Camera:
 
     __cfg       : Config
     __mode      : CAM_MODE
+
+    def fade_in(self):
+        pass
+
+    def fade_out(self):
+        pass
 
     def in_bounds(self, bounds:Rect):
         return self.__bounds.colliderect(bounds)
@@ -70,31 +77,43 @@ class Window:
         return self.__cam
     
     #Render
-    def draw_map(self, map:Map):
+    def draw_map(self, map:OW_Map, prev:OW_Map = None):
+        if map == None: return
 
-        dim = map.get_size()
+        if map.north != prev: 
+            self.draw_map(map.north, map)
+        elif map.south != prev: 
+            self.draw_map(map.south, map)
+        elif map.east != prev: 
+            self.draw_map(map.east, map)
+        elif map.west != prev: 
+            self.draw_map(map.west, map)
+
+        if self.__cfg.draw_border:
+            mx, my = map.rect.topleft
+            w, h = map.rect.width, map.rect.height
+            cx, cy = self.__cam.get_pos()
+            rect = Rect(mx-cx, my-cy, w, h)
+            # if map.west != None:
+            #     print(f'____ {rect.topleft} __ {cx}, {cy} __ {mx},{my}')
+            pygame.draw.rect(self.__canvas, (255,0,0), rect, width=5)
+
+    '''Recursively render all visible maps on island'''
+    def draw_island(self, island:Overworld):
+
+        map = island.base
+        #dim = map.get_size()
         sc = self.__cfg.sprite_scale
         cx, cy = self.__cam.get_pos()
 
-        return
-
-        for y in range(dim[1]):
-            for x in range(dim[0]):
-                cell = map.get_cell(x, y)
-                img = self.__rsc.get(AType.sprite, cell.image_id)
-                #npos = ((x*sc)+cx, (y*sc)+cy)
-                nx, ny = self.__local(self.__cam.get_pos())
-                npos = ((x*sc)+nx, (y*sc)+ny)
-                if x == 0 and y == 0:
-                    print(f'<< {npos}')
-                self.__canvas.blit(img, npos)
+        self.draw_map(map)
         
     def draw_sprite(self,
                     sprite,
                     pos:tuple[float, float]
                     ):
         sc = self.__cfg.sprite_scale
-        print(f'>> {(pos[0]*sc, pos[1]*sc)}')
+        #print(f'>> {(pos[0]*sc, pos[1]*sc)}')
         #self.__canvas.blit(sprite, (pos[0]*sc, pos[1]*sc))
         pos = (pygame.display.get_window_size())
         pos = (pos[0]/2, pos[1]/2)

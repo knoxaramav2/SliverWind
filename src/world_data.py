@@ -57,7 +57,7 @@ class Map(Serializeable):
     __events        : list[EventZone]
     load_script     : int
 
-    __neighbors     : [int] = [0, 0, 0, 0]
+    __neighbors     : [int]
 
     def serialize(self) -> str:
         ret = ''
@@ -93,6 +93,7 @@ class Map(Serializeable):
         self.zone = zone
         self.__size = (w, h)
         self.__grid = [[None]*w for _ in range(h)]
+        self.__neighbors = [0, 0, 0, 0]
         self.__events = []
         self.load_script = 0
     
@@ -122,11 +123,8 @@ class WorldData(Serializeable):
                 return
 
     def get_by_id(self, id:int):
-
-        for kz, vz in self.__maps.items():
-            pass
-
-        pass
+        if id not in self.__maps: return None
+        return self.__maps[id]
 
     #For new worlds, loads .swc from editor
     def load_world_model(self, raw:str):
@@ -214,37 +212,42 @@ class WorldData(Serializeable):
             elif c == '=':
                 if buff == '': continue
                 if buff == 'COL': buff = ''
-                #KEY/VAL
-                e = raw.find(';', i)
-                val = raw[i+1: e]
-                #Cell data
-                if state[0] == 3 and state[1] == 1 and state[2] == 1:
-                    if buff == 'IMG': img_id = int(val)
-                    elif buff == 'OVRIMG': ovrimg_id = int(val)
-                    elif buff == 'BLOCK': block = val == 'True'
-                    elif buff == 'EVENT':
-                        if val == '': event = None
+                elif buff == 'START':
+                    idx = raw.find(';', i)
+                    self.__start_map = int(raw[i+1:idx])
+                    i = idx
+                    buff = ''
+                else:#KEY/VAL
+                    e = raw.find(';', i)
+                    val = raw[i+1: e]
+                    #Cell data
+                    if state[0] == 3 and state[1] == 1 and state[2] == 1:
+                        if buff == 'IMG': img_id = int(val)
+                        elif buff == 'OVRIMG': ovrimg_id = int(val)
+                        elif buff == 'BLOCK': block = val == 'True'
+                        elif buff == 'EVENT':
+                            if val == '': event = None
+                            else:
+                                #TODO
+                                pass
+                    #Neightbor id's/DIMS
+                    if state[0] == 3 and state[1] == 0 and state[2] == 0:
+                        if buff == '': continue
+                        if buff == 'DIM':
+                            w, h = val[1:-1].split(',')
+                            w = int(w)
+                            h = int(h)
+                            map = Map(map_name, int(map_id), zone, w, h)
+                            self.__maps[int(map_id)] = map
+                            curr_map = map
+                        elif buff == 'START':
+                            if val == 'True': self.__start_map = int(map_id)
+                        elif buff == 'ONLOAD':
+                            if val != '': onload_id = int(val)
                         else:
-                            #TODO
-                            pass
-                #Neightbor id's/DIMS
-                if state[0] == 3 and state[1] == 0 and state[2] == 0:
-                    if buff == '': continue
-                    if buff == 'DIM':
-                        w, h = val[1:-1].split(',')
-                        w = int(w)
-                        h = int(h)
-                        map = Map(map_name, int(map_id), zone, w, h)
-                        self.__maps[int(map_id)] = map
-                        curr_map = map
-                    elif buff == 'START':
-                        if val == 'True': self.__start_map = int(map_id)
-                    elif buff == 'ONLOAD':
-                        if val != '': onload_id = int(val)
-                    else:
-                        neighbors[buff] = int(val)
-                buff = ''
-                i = e
+                            neighbors[buff] = int(val)
+                    buff = ''
+                    i = e
             else:
                 buff += c
 

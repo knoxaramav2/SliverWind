@@ -17,6 +17,7 @@ class Config:
     dev_god_mode        : bool = False
     dev_start_map       : str = None
     dev_save_file       : str = None
+    draw_border         : bool = False
 
     def __parse_cli(self):
         args = sys.argv
@@ -32,6 +33,7 @@ class Config:
                 case '--fullscreen': self.fullscreen = True
                 case '--spritedim': self.sprite_scale = int(v)
                 case '--fps': self.fps = int(v)
+                case '--draw-border': self.draw_border = True
 
                 case '-d': self.dev_mode = True
                 case '-g': self.dev_god_mode = self.dev_mode = True
