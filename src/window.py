@@ -1,7 +1,8 @@
 from enum import Enum
+from random import randint
 import pygame
 from pygame import Rect
-from asset_manager import AType, AssetManager, get_assetmanager
+from asset_manager import AType, Asset, AssetManager, get_assetmanager
 from config import Config, get_config
 from overworld import OW_Map, Overworld
 from world_data import Map
@@ -86,23 +87,42 @@ class Window:
         pygame.draw.rect(self.__canvas, color, Rect(x, y, width, h))
         pygame.draw.rect(self.__canvas, color, Rect(x+w-width, y, width, h))
 
+    def __draw_map(self, map:OW_Map, rect:Rect):
+
+        if not self.__cam.in_bounds(map.rect):
+            print(f'Skipped {map.map.name} ({map.map.id})')
+            return
+
+        sz = map.map.get_size()
+        ss = self.__cfg.sprite_scale
+        px, py = rect.topleft
+
+        for x in range(sz[0]):
+            for y in range(sz[1]):
+                #TODO optomize with blits
+                c = map.map.get_cell(x, y)
+                ast:Asset = self.__rsc.get_asset_id(AType.sprite, c.image_id)
+                pos = (px+ss*x, py+ss*y)
+                self.__canvas.blit(ast.rsc, pos)
+
     def draw_map(self, map:OW_Map, prev:OW_Map = None):
         if map == None: return
 
         if map.north != prev: 
             self.draw_map(map.north, map)
-        elif map.south != prev: 
+        if map.south != prev: 
             self.draw_map(map.south, map)
-        elif map.east != prev: 
+        if map.east != prev: 
             self.draw_map(map.east, map)
-        elif map.west != prev: 
+        if map.west != prev: 
             self.draw_map(map.west, map)
 
         mx, my = map.rect.topleft
         w, h = map.rect.width, map.rect.height
         cx, cy = self.__cam.get_pos()
         rect = Rect(mx-cx, my-cy, w, h)
-        self.draw_border(rect)
+        self.__draw_map(map, rect)
+        self.draw_border(rect, color=(randint(0, 255), randint(0, 255), randint(0, 255)))
 
     '''Recursively render all visible maps on island'''
     def draw_island(self, island:Overworld):

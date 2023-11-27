@@ -52,14 +52,14 @@ class GameLoop(Runnable):
 
         if x_dir == 0 and y_dir == 0: return
 
-        x_dir += sprint*x_dir 
-        y_dir += sprint*y_dir
+        x_dir += sprint*x_dir*3
+        y_dir += sprint*y_dir*3
         self.__player.move(x_dir, y_dir)
         self.__cam.move(self.__player.pos)
 
         ppos = self.__player.pos
         cpos = self.__cam.get_pos()
-        print(f'{ppos[0]},{ppos[1]} : {cpos[0]},{cpos[1]}')
+        #print(f'{ppos[0]},{ppos[1]} : {cpos[0]},{cpos[1]}')
 
     def __handle_menu(self):
 
