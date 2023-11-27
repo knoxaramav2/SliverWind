@@ -34,13 +34,18 @@ class SpriteAnimation:
     __length        : int
     __state         : ANIM_STATE
     __no_img        : any
+    __skip_cnt      : int
 
     def update(self) -> Surface:
+
+        self.__skip_cnt += 1
+        if self.__skip_cnt == 5:
+            self.__frame += 1
+            self.__skip_cnt = 0
 
         if self.__length == 0:
             return self.__no_img
 
-        self.__frame += 1
         if self.__frame == self.__length:
             self.__frame = 0
         return self.__sprites[self.__frame]
@@ -87,6 +92,7 @@ class SpriteAnimation:
         self.__length = 0
         self.__frame = 0
         self.__no_img = GetUtil().missing_img()
+        self.__skip_cnt = 0
         
 
 ACTOR_CLASS = Enum(

@@ -5,7 +5,8 @@ from enum import Enum
 RUN_RESULT = Enum(
     'run_results', [
         'OK',
-        'EXIT'
+        'EXIT',
+        'MENU'
     ]
 )
 

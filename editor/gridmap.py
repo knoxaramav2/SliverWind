@@ -219,6 +219,13 @@ class GridManager(ISerializeable):
             return
         self.__zones[zone] = []
 
+    def get_map_by_id(self, id:int):
+        for dk, dv in self.__zones.items():
+            for map in dv: 
+                if map.id == id: return map
+        
+        return None
+
     def get_map(self, zone:str, map:str) -> GridMap:
         zn = self.__get_zone(zone)
         if zn == None: return None
@@ -293,7 +300,7 @@ class GridManager(ISerializeable):
             elif c == '}':
                 cntr[0] -= 1
                 #Close map
-                if cntr[0] == 2 and cntr[1] == 0 and cntr[0] == 0:
+                if cntr[0] == 2 and cntr[1] == 0 and cntr[2] == 0:
                     self.__current.North = card_vals['NORTH']
                     self.__current.South = card_vals['SOUTH']
                     self.__current.East = card_vals['EAST']
@@ -372,7 +379,7 @@ class GridManager(ISerializeable):
                             width = int(width)
                             height = int(height)
                             tmp = self.add_map(last_zone, map_name, width, height)
-                            self.__current.id = map_id
+                            self.__current.id = int(map_id)
                             if start_id == int(tmp.id): self.__start_map = tmp
                             col = row = 0
                         elif buff == 'ONLOAD':
@@ -385,5 +392,12 @@ class GridManager(ISerializeable):
             else:
                 buff += c
 
-
+        #resolve map by id
+        for dk, dv in self.__zones.items():
+            map:GridMap
+            for map in dv:
+                if isinstance(map.North, int): map.North = self.get_map_by_id(map.North)
+                if isinstance(map.South, int): map.South = self.get_map_by_id(map.South)
+                if isinstance(map.East, int): map.East = self.get_map_by_id(map.East)
+                if isinstance(map.West, int): map.West = self.get_map_by_id(map.West)
         pass

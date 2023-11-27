@@ -90,7 +90,7 @@ class Window:
     def __draw_map(self, map:OW_Map, rect:Rect):
 
         if not self.__cam.in_bounds(map.rect):
-            print(f'Skipped {map.map.name} ({map.map.id})')
+            #print(f'Skipped {map.map.name} ({map.map.id})')
             return
 
         sz = map.map.get_size()
@@ -126,12 +126,7 @@ class Window:
 
     '''Recursively render all visible maps on island'''
     def draw_island(self, island:Overworld):
-
         map = island.base
-        #dim = map.get_size()
-        sc = self.__cfg.sprite_scale
-        cx, cy = self.__cam.get_pos()
-
         self.draw_map(map)
         
     def draw_sprite(self,

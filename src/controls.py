@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Callable
 import pygame
+from config import Config, get_config
 
 from util import coall
 
@@ -35,7 +36,7 @@ class Control:
         self._bounds.centery = sz[1]/2
 
     def move(self, pos:tuple[int, int]):
-        self._bounds.center = pos
+        self._bounds.topleft = pos
 
     def show(self):
         self._visible = True
@@ -125,7 +126,7 @@ class Label(Control):
     def update(self):
         if not self._visible: return
         if not self._background_off: super().update()
-        super().update()
+        #super().update()
         self._canvas.blit(self.__text, self._bounds)
         
     def set_text(self, text:str):
@@ -134,7 +135,7 @@ class Label(Control):
         font = pygame.font.SysFont(self.__font, self.__size)
         self.__text = font.render(text, 1, self.__foreground, self._background)
         self._bounds = self.__text.get_rect()
-        self._bounds.topleft = self.__text.get_rect().center
+        #self._bounds.topleft = self.__text.get_rect().topleft
         #self.move(self.__text.get_rect().center)
 
     def move(self, pos: tuple[int, int]):
@@ -148,8 +149,8 @@ class Label(Control):
                  parent:Control=None):
         super().__init__(canvas, pos, (1,1))
         self._background_off = bg_off
+        if self._background_off: self._background = None
         self.__foreground = (255, 255, 255)
-        #self._background = (0, 255, 0)
         self.set_text(text)
         self._parent = parent
 
@@ -160,7 +161,7 @@ class Button(Control):
 
     def move(self, pos: tuple[int, int]):
         super().move(pos)
-        self.__text.move(self._bounds.center)
+        self.__text.move(self._bounds.topleft)
 
     def update(self):
         super().update()
@@ -176,7 +177,7 @@ class Button(Control):
     def resize(self, pad:int = 5):
         self._bounds.width = self.__text._bounds.width+(2*pad)
         self._bounds.height = self.__text._bounds.height+(2*pad)
-        self.__text.move(self._bounds.center)
+        self.__text.move(self._bounds.topleft)
 
     def __init__(
                 self, canvas:pygame.Surface, 
@@ -188,7 +189,7 @@ class Button(Control):
         self.__callback = callback
         self._visible = True
         self.__text = Label(canvas, text, parent=self, bg_off=True)
-        self.__text.center(self._bounds)
+        #self.__text.center(self._bounds)
         self.resize()
         self._background=(0, 0, 255)
         self._parent = parent
@@ -225,6 +226,29 @@ class Menu(Container):
         super().center()
         self.__title = text
         self._visible = False
+
+class UI(Control):
+
+    __cfg           : Config
+    __children      : list[Control]
+
+    def add(self, ctrl:Control, pos:tuple[int, int]):
+        ctrl._parent = self
+        self.__children.append(ctrl)
+        ctrl.move(pos)
+
+    def update(self):
+        super().update()
+        for c in self.__children:
+            c.update()
+
+    def __init__(self, canvas: pygame.Surface):
+        self.__cfg = self.__cfg = get_config()
+        dim = (self.__cfg.win_width, self.__cfg.win_height)
+        pos = (0, 0)
+        self.__children = []
+        super().__init__(canvas)
+
 
 class DevTerminal(Control):
 

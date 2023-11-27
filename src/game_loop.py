@@ -3,7 +3,7 @@
 import pygame
 from actor import ACTOR_CLASS, Actor, ActorFactory
 from config import Config, get_config
-from controls import Button, Menu
+from controls import UI, Button, Label, Menu
 from game_state import GameState, get_gamestate
 from interface import RUN_RESULT, Runnable
 from overworld import Overworld
@@ -27,7 +27,7 @@ class GameLoop(Runnable):
     __clock         : pygame.time.Clock
     __cfg           : Config
     __util          : Util
-
+    __ui            : UI
     __menu          : Menu
 
 
@@ -74,9 +74,14 @@ class GameLoop(Runnable):
                     self.__menu.on_click()
      
 #Menu
-    def __close_menu(self):
-        self.__menu.hide()
-        self.__pause=False
+    def __close_menu(self, comm:str):
+
+        if comm == 'quit': 
+            self.__active = False
+            self.__exit_code = RUN_RESULT.MENU
+        elif comm == 'ok':
+            self.__menu.hide()
+            self.__pause=False
 
 #General
     def __loop(self):
@@ -89,6 +94,7 @@ class GameLoop(Runnable):
 
             for e in pygame.event.get():
                 self.__handle_event(e)
+
             self.__handle_keys()
             self.__update()
             self.__draw_background()
@@ -97,11 +103,12 @@ class GameLoop(Runnable):
             pygame.display.update()
 
     def __spawn_player(self):
+        center = self.__overworld.base.rect.center
         self.__player = self.__factory.Create(
             ACTOR_CLASS.PLAYER, False,
-            'dev', (5, 5), 
+            'dev', center, 
         )
-        pass
+        self.__player.move(center[0], center[1])
 
     def run(self) -> RUN_RESULT:
         self.__clock = pygame.time.Clock()
@@ -128,6 +135,7 @@ class GameLoop(Runnable):
         self.__win.draw_island(self.__overworld)
 
     def __draw_menus(self):
+        self.__ui.update()
         self.__menu.update()
 
 #Inits
@@ -142,14 +150,14 @@ class GameLoop(Runnable):
         
         cancel = Button(
             self.__win.get_canvas(),
-            'Cancel',
-            callback=self.__close_menu
+            'Quit',
+            callback=lambda:self.__close_menu('quit')
         )
 
         ok = Button(
             self.__win.get_canvas(),
             'OK',
-            callback=self.__close_menu
+            callback=lambda:self.__close_menu('ok')
         )
         
         self.__menu.add(cancel, 0, 0)
@@ -158,6 +166,15 @@ class GameLoop(Runnable):
 
     def __init_camera(self):
         self.__cam = self.__win.get_camera()
+
+    def __init_ui(self):
+       
+        ui = UI(self.__win.get_canvas())
+        self.__ui = ui
+
+        lbl = Label(self.__win.get_canvas(), 'Hello world', bg_off=True)
+
+        ui.add(lbl, (0, 0))
 
     def __init__(self):
         super().__init__()
@@ -169,5 +186,5 @@ class GameLoop(Runnable):
         self.__factory = ActorFactory()
         self.__init_menu()
         self.__init_camera()
-
         self.__load_island()
+        self.__init_ui()

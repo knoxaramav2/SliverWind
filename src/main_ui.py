@@ -5,13 +5,14 @@
 import pygame
 from controls import Menu
 from interface import RUN_RESULT, Runnable
+from window import Window, get_win
 
 
 class MainMenu(Menu, Runnable):
     
 
     __active        : bool = True
-
+    __win           : Window
 
     #Control
 
@@ -32,4 +33,7 @@ class MainMenu(Menu, Runnable):
         self.__active =False
     
     def __init__(self, title: str) -> None:
-        super().__init__(title)
+        self.__win = get_win()
+        super().__init__(
+            self.__win.get_canvas(),
+            title)

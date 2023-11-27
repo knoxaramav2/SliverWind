@@ -72,7 +72,8 @@ class StateBroker(Runnable):
                 gameloop = GameLoop()
                 res = gameloop.run()
                 if res == RUN_RESULT.EXIT: self.__active = False
-                else: self.state == BASE_STATES.MAIN_MENU
+                elif res == RUN_RESULT.MENU: self.state = BASE_STATES.MAIN_MENU
+                else: self.state = BASE_STATES.EXIT
             case BASE_STATES.DEV_START: 
                 #get save file or create if not exist
                 load_path = self.__cfg.dev_start_map
